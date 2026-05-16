@@ -22,4 +22,18 @@ export class ContactService {
       data: contactMessage,
     };
   }
+
+  async findAll() {
+    const contactMessages = await this.prisma.contactMessage.findMany({
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return {
+      success: true,
+      message: 'Mensajes obtenidos correctamente',
+      data: contactMessages,
+    };
+  }
 }
