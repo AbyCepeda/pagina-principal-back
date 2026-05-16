@@ -17,5 +17,6 @@ model ContactMessage {
   projectType String
   budget      String
   message     String   @db.Text
+  isRead      Boolean  @default(false)
   createdAt   DateTime @default(now())
 }

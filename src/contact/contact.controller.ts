@@ -1,4 +1,12 @@
-import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+} from '@nestjs/common';
 import { ContactService } from './contact.service';
 import { CreateContactDto } from './dto/create-contact.dto';
 
@@ -24,5 +32,10 @@ export class ContactController {
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.contactService.remove(Number(id));
+  }
+
+  @Patch(':id/read')
+  markAsRead(@Param('id') id: string) {
+    return this.contactService.markAsRead(Number(id));
   }
 }

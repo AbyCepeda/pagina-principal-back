@@ -86,4 +86,35 @@ export class ContactService {
       data: contactMessage,
     };
   }
+
+  async markAsRead(id: number) {
+    const contactMessage = await this.prisma.contactMessage.findUnique({
+      where: {
+        id,
+      },
+    });
+
+    if (!contactMessage) {
+      return {
+        success: false,
+        message: 'Mensaje de contacto no encontrado',
+        data: null,
+      };
+    }
+
+    const updatedContactMessage = await this.prisma.contactMessage.update({
+      where: {
+        id,
+      },
+      data: {
+        isRead: true,
+      },
+    });
+
+    return {
+      success: true,
+      message: 'Mensaje marcado como leído correctamente',
+      data: updatedContactMessage,
+    };
+  }
 }
