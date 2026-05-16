@@ -1,16 +1,25 @@
 import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
 import { CreateContactDto } from './dto/create-contact.dto';
 
 @Injectable()
 export class ContactService {
-  create(createContactDto: CreateContactDto) {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async create(createContactDto: CreateContactDto) {
+    const contactMessage = await this.prisma.contactMessage.create({
+      data: {
+        name: createContactDto.name,
+        projectType: createContactDto.projectType,
+        budget: createContactDto.budget,
+        message: createContactDto.message,
+      },
+    });
+
     return {
       success: true,
-      message: 'Mensaje recibido correctamente',
-      data: {
-        ...createContactDto,
-        createdAt: new Date().toISOString(),
-      },
+      message: 'Mensaje guardado correctamente',
+      data: contactMessage,
     };
   }
 }

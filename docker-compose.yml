@@ -1,0 +1,17 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: pagina_principal_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: pagina_principal_db
+      MYSQL_USER: pagina_user
+      MYSQL_PASSWORD: pagina_password
+    ports:
+      - "3308:3306"
+    volumes:
+      - pagina_principal_mysql_data:/var/lib/mysql
+
+volumes:
+  pagina_principal_mysql_data:
