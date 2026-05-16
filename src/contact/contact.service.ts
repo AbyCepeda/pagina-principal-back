@@ -36,4 +36,26 @@ export class ContactService {
       data: contactMessages,
     };
   }
+
+  async findOne(id: number) {
+  const contactMessage = await this.prisma.contactMessage.findUnique({
+    where: {
+      id,
+    },
+  });
+
+  if (!contactMessage) {
+    return {
+      success: false,
+      message: 'Mensaje de contacto no encontrado',
+      data: null,
+    };
+  }
+
+  return {
+    success: true,
+    message: 'Mensaje obtenido correctamente',
+    data: contactMessage,
+  };
+}
 }
