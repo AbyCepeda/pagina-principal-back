@@ -38,24 +38,52 @@ export class ContactService {
   }
 
   async findOne(id: number) {
-  const contactMessage = await this.prisma.contactMessage.findUnique({
-    where: {
-      id,
-    },
-  });
+    const contactMessage = await this.prisma.contactMessage.findUnique({
+      where: {
+        id,
+      },
+    });
 
-  if (!contactMessage) {
+    if (!contactMessage) {
+      return {
+        success: false,
+        message: 'Mensaje de contacto no encontrado',
+        data: null,
+      };
+    }
+
     return {
-      success: false,
-      message: 'Mensaje de contacto no encontrado',
-      data: null,
+      success: true,
+      message: 'Mensaje obtenido correctamente',
+      data: contactMessage,
     };
   }
 
-  return {
-    success: true,
-    message: 'Mensaje obtenido correctamente',
-    data: contactMessage,
-  };
-}
+  async remove(id: number) {
+    const contactMessage = await this.prisma.contactMessage.findUnique({
+      where: {
+        id,
+      },
+    });
+
+    if (!contactMessage) {
+      return {
+        success: false,
+        message: 'Mensaje de contacto no encontrado',
+        data: null,
+      };
+    }
+
+    await this.prisma.contactMessage.delete({
+      where: {
+        id,
+      },
+    });
+
+    return {
+      success: true,
+      message: 'Mensaje eliminado correctamente',
+      data: contactMessage,
+    };
+  }
 }
