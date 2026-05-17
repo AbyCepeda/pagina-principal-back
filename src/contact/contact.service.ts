@@ -117,4 +117,20 @@ export class ContactService {
       data: updatedContactMessage,
     };
   }
+
+  async countUnread() {
+    const count = await this.prisma.contactMessage.count({
+      where: {
+        isRead: false,
+      },
+    });
+
+    return {
+      success: true,
+      message: 'Total de mensajes no leídos obtenido correctamente',
+      data: {
+        count,
+      },
+    };
+  }
 }

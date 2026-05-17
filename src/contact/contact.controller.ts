@@ -38,4 +38,9 @@ export class ContactController {
   markAsRead(@Param('id') id: string) {
     return this.contactService.markAsRead(Number(id));
   }
+
+  @Get('unread/count')
+  countUnread() {
+    return this.contactService.countUnread();
+  }
 }
