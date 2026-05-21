@@ -1,8 +1,8 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
-import { PrismaService } from '../prisma/prisma.service';
 import { RegisterDto } from '../auth/dto/register.dto';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class UsersService {
@@ -34,10 +34,33 @@ export class UsersService {
         email: true,
         role: true,
         createdAt: true,
+        updatedAt: true,
       },
     });
 
     return user;
+  }
+
+  async findAll() {
+    const users = await this.prisma.user.findMany({
+      orderBy: {
+        createdAt: 'desc',
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    return {
+      success: true,
+      message: 'Usuarios obtenidos correctamente',
+      data: users,
+    };
   }
 
   async findByEmail(email: string) {
@@ -49,7 +72,7 @@ export class UsersService {
   }
 
   async findById(id: number) {
-    return this.prisma.user.findUnique({
+    const user = await this.prisma.user.findUnique({
       where: {
         id,
       },
@@ -62,5 +85,11 @@ export class UsersService {
         updatedAt: true,
       },
     });
+
+    if (!user) {
+      throw new NotFoundException('Usuario no encontrado.');
+    }
+
+    return user;
   }
 }
