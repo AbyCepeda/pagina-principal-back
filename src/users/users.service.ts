@@ -1,4 +1,9 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Role } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { RegisterDto } from '../auth/dto/register.dto';
@@ -91,5 +96,82 @@ export class UsersService {
     }
 
     return user;
+  }
+
+  async updateRole(id: number, role: Role, currentUserId: number) {
+    const user = await this.prisma.user.findUnique({
+      where: {
+        id,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Usuario no encontrado.');
+    }
+
+    if (user.id === currentUserId && role !== Role.ADMIN) {
+      throw new BadRequestException(
+        'No puedes quitarte tu propio rol de administrador.',
+      );
+    }
+
+    const updatedUser = await this.prisma.user.update({
+      where: {
+        id,
+      },
+      data: {
+        role,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    return {
+      success: true,
+      message: 'Rol actualizado correctamente',
+      data: updatedUser,
+    };
+  }
+
+  async remove(id: number, currentUserId: number) {
+    const user = await this.prisma.user.findUnique({
+      where: {
+        id,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Usuario no encontrado.');
+    }
+
+    if (user.id === currentUserId) {
+      throw new BadRequestException('No puedes eliminar tu propio usuario.');
+    }
+
+    const deletedUser = await this.prisma.user.delete({
+      where: {
+        id,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    return {
+      success: true,
+      message: 'Usuario eliminado correctamente',
+      data: deletedUser,
+    };
   }
 }
