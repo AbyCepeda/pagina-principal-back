@@ -24,7 +24,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
     ServicesModule,
     DashboardModule,
   ],
-  controllers: [AppController, DashboardController],
+  controllers: [AppController],
   providers: [AppService],
 })
 export class AppModule {}
