@@ -13,6 +13,12 @@ import { PrismaService } from '../prisma/prisma.service';
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * Crea un usuario nuevo.
+   *
+   * Valida que no exista otro usuario con el mismo correo
+   * y guarda la contraseña encriptada con bcrypt.
+   */
   async create(registerDto: RegisterDto) {
     const existingUser = await this.prisma.user.findUnique({
       where: {
@@ -46,6 +52,9 @@ export class UsersService {
     return user;
   }
 
+  /**
+   * Lista todos los usuarios sin exponer contraseñas.
+   */
   async findAll() {
     const users = await this.prisma.user.findMany({
       orderBy: {
@@ -68,6 +77,11 @@ export class UsersService {
     };
   }
 
+  /**
+   * Busca usuario por email.
+   *
+   * Este método sí devuelve password porque se usa para login.
+   */
   async findByEmail(email: string) {
     return this.prisma.user.findUnique({
       where: {
@@ -76,6 +90,11 @@ export class UsersService {
     });
   }
 
+  /**
+   * Busca usuario por id sin exponer password.
+   *
+   * Se usa para /auth/me y respuestas públicas internas.
+   */
   async findById(id: number) {
     const user = await this.prisma.user.findUnique({
       where: {
@@ -98,6 +117,47 @@ export class UsersService {
     return user;
   }
 
+  /**
+   * Busca usuario por id incluyendo password.
+   *
+   * Se usa solo para procesos internos como cambio de contraseña.
+   */
+  async findByIdWithPassword(id: number) {
+    return this.prisma.user.findUnique({
+      where: {
+        id,
+      },
+    });
+  }
+
+  /**
+   * Actualiza la contraseña de un usuario.
+   *
+   * Recibe la contraseña ya encriptada.
+   */
+  async updatePassword(id: number, hashedPassword: string) {
+    return this.prisma.user.update({
+      where: {
+        id,
+      },
+      data: {
+        password: hashedPassword,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        updatedAt: true,
+      },
+    });
+  }
+
+  /**
+   * Actualiza el rol de un usuario.
+   *
+   * Evita que el usuario actual se quite su propio rol ADMIN.
+   */
   async updateRole(id: number, role: Role, currentUserId: number) {
     const user = await this.prisma.user.findUnique({
       where: {
@@ -139,6 +199,11 @@ export class UsersService {
     };
   }
 
+  /**
+   * Elimina un usuario.
+   *
+   * Evita que el usuario autenticado se elimine a sí mismo.
+   */
   async remove(id: number, currentUserId: number) {
     const user = await this.prisma.user.findUnique({
       where: {

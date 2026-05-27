@@ -1,7 +1,12 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 
@@ -12,6 +17,11 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) {}
 
+  /**
+   * Registra un usuario nuevo.
+   *
+   * La contraseña se encripta dentro de UsersService.
+   */
   async register(registerDto: RegisterDto) {
     const user = await this.usersService.create(registerDto);
 
@@ -22,11 +32,17 @@ export class AuthService {
     };
   }
 
+  /**
+   * Inicia sesión.
+   *
+   * Busca el usuario por correo, valida la contraseña con bcrypt
+   * y genera un JWT con los datos mínimos del usuario.
+   */
   async login(loginDto: LoginDto) {
     const user = await this.usersService.findByEmail(loginDto.email);
 
     if (!user) {
-      throw new UnauthorizedException('Credenciales incorrectas.');
+      throw new UnauthorizedException('Correo o contraseña incorrectos.');
     }
 
     const isPasswordValid = await bcrypt.compare(
@@ -35,7 +51,7 @@ export class AuthService {
     );
 
     if (!isPasswordValid) {
-      throw new UnauthorizedException('Credenciales incorrectas.');
+      throw new UnauthorizedException('Correo o contraseña incorrectos.');
     }
 
     const payload = {
@@ -60,7 +76,13 @@ export class AuthService {
       },
     };
   }
-  
+
+  /**
+   * Obtiene el usuario autenticado desde base de datos.
+   *
+   * Esto permite validar que el usuario todavía exista
+   * aunque el token sea técnicamente válido.
+   */
   async me(userId: number) {
     const user = await this.usersService.findById(userId);
 
@@ -72,6 +94,56 @@ export class AuthService {
       success: true,
       message: 'Usuario autenticado',
       data: user,
+    };
+  }
+
+  /**
+   * Cambia la contraseña del usuario autenticado.
+   *
+   * 1. Busca el usuario incluyendo password.
+   * 2. Valida que la contraseña actual sea correcta.
+   * 3. Valida que la nueva contraseña no sea igual a la actual.
+   * 4. Encripta la nueva contraseña.
+   * 5. Guarda el nuevo hash.
+   */
+  async changePassword(userId: number, changePasswordDto: ChangePasswordDto) {
+    const user = await this.usersService.findByIdWithPassword(userId);
+
+    if (!user) {
+      throw new UnauthorizedException('Usuario no encontrado.');
+    }
+
+    const isCurrentPasswordValid = await bcrypt.compare(
+      changePasswordDto.currentPassword,
+      user.password,
+    );
+
+    if (!isCurrentPasswordValid) {
+      throw new BadRequestException('La contraseña actual no es correcta.');
+    }
+
+    const isSamePassword = await bcrypt.compare(
+      changePasswordDto.newPassword,
+      user.password,
+    );
+
+    if (isSamePassword) {
+      throw new BadRequestException(
+        'La nueva contraseña no puede ser igual a la contraseña actual.',
+      );
+    }
+
+    const hashedNewPassword = await bcrypt.hash(
+      changePasswordDto.newPassword,
+      10,
+    );
+
+    await this.usersService.updatePassword(userId, hashedNewPassword);
+
+    return {
+      success: true,
+      message: 'Contraseña actualizada correctamente',
+      data: null,
     };
   }
 }

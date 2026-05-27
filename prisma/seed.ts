@@ -9,16 +9,11 @@ import * as bcrypt from 'bcrypt'
  * Por eso NO usamos new PrismaClient() vacío.
  */
 const adapter = new PrismaMariaDb({
-  host: '127.0.0.1',
-  port: 3308,
-  user: 'pagina_user',
-  password: 'pagina_password',
-  database: 'pagina_principal_db',
-
-  /**
-   * Necesario para evitar el error:
-   * RSA public key is not available client side
-   */
+  host: process.env.DATABASE_HOST ?? '127.0.0.1',
+  port: Number(process.env.DATABASE_PORT ?? 3308),
+  user: process.env.DATABASE_USER ?? 'root',
+  password: process.env.DATABASE_PASSWORD ?? 'root',
+  database: process.env.DATABASE_NAME ?? 'pagina_principal_db',
   allowPublicKeyRetrieval: true,
 })
 
