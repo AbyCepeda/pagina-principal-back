@@ -239,4 +239,50 @@ export class UsersService {
       data: deletedUser,
     };
   }
+
+  /**
+ * Actualiza el perfil del usuario autenticado.
+ *
+ * Valida que el nuevo correo no esté siendo usado por otro usuario.
+ */
+async updateProfile(id: number, name: string, email: string) {
+  const user = await this.prisma.user.findUnique({
+    where: {
+      id,
+    },
+  });
+
+  if (!user) {
+    throw new NotFoundException('Usuario no encontrado.');
+  }
+
+  const existingUserWithEmail = await this.prisma.user.findUnique({
+    where: {
+      email,
+    },
+  });
+
+  if (existingUserWithEmail && existingUserWithEmail.id !== id) {
+    throw new ConflictException('Ya existe otro usuario con este correo.');
+  }
+
+  return this.prisma.user.update({
+    where: {
+      id,
+    },
+    data: {
+      name,
+      email,
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+}
+
 }

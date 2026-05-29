@@ -9,6 +9,7 @@ import { UsersService } from '../users/users.service';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @Injectable()
 export class AuthService {
@@ -146,4 +147,23 @@ export class AuthService {
       data: null,
     };
   }
+
+  /**
+ * Actualiza el perfil del usuario autenticado.
+ *
+ * Permite cambiar nombre y correo.
+ */
+async updateProfile(userId: number, updateProfileDto: UpdateProfileDto) {
+  const updatedUser = await this.usersService.updateProfile(
+    userId,
+    updateProfileDto.name.trim(),
+    updateProfileDto.email.trim().toLowerCase(),
+  );
+
+  return {
+    success: true,
+    message: 'Perfil actualizado correctamente',
+    data: updatedUser,
+  };
+}
 }
