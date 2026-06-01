@@ -38,12 +38,14 @@ export class UsersService {
         email: registerDto.email,
         password: hashedPassword,
         role: registerDto.role ?? Role.USER,
+        isActive: true,
       },
       select: {
         id: true,
         name: true,
         email: true,
         role: true,
+        isActive: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -65,6 +67,7 @@ export class UsersService {
         name: true,
         email: true,
         role: true,
+        isActive: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -105,6 +108,7 @@ export class UsersService {
         name: true,
         email: true,
         role: true,
+        isActive: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -148,6 +152,7 @@ export class UsersService {
         name: true,
         email: true,
         role: true,
+        isActive: true,
         updatedAt: true,
       },
     });
@@ -187,6 +192,7 @@ export class UsersService {
         name: true,
         email: true,
         role: true,
+        isActive: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -195,6 +201,55 @@ export class UsersService {
     return {
       success: true,
       message: 'Rol actualizado correctamente',
+      data: updatedUser,
+    };
+  }
+
+  /**
+   * Activa o desactiva un usuario.
+   *
+   * Evita que el administrador se desactive a sí mismo.
+   */
+  async updateStatus(id: number, isActive: boolean, currentUserId: number) {
+    const user = await this.prisma.user.findUnique({
+      where: {
+        id,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Usuario no encontrado.');
+    }
+
+    if (user.id === currentUserId) {
+      throw new BadRequestException(
+        'No puedes desactivar tu propio usuario.',
+      );
+    }
+
+    const updatedUser = await this.prisma.user.update({
+      where: {
+        id,
+      },
+      data: {
+        isActive,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    return {
+      success: true,
+      message: isActive
+        ? 'Usuario activado correctamente'
+        : 'Usuario desactivado correctamente',
       data: updatedUser,
     };
   }
@@ -228,6 +283,7 @@ export class UsersService {
         name: true,
         email: true,
         role: true,
+        isActive: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -241,48 +297,48 @@ export class UsersService {
   }
 
   /**
- * Actualiza el perfil del usuario autenticado.
- *
- * Valida que el nuevo correo no esté siendo usado por otro usuario.
- */
-async updateProfile(id: number, name: string, email: string) {
-  const user = await this.prisma.user.findUnique({
-    where: {
-      id,
-    },
-  });
+   * Actualiza el perfil del usuario autenticado.
+   *
+   * Valida que el nuevo correo no esté siendo usado por otro usuario.
+   */
+  async updateProfile(id: number, name: string, email: string) {
+    const user = await this.prisma.user.findUnique({
+      where: {
+        id,
+      },
+    });
 
-  if (!user) {
-    throw new NotFoundException('Usuario no encontrado.');
+    if (!user) {
+      throw new NotFoundException('Usuario no encontrado.');
+    }
+
+    const existingUserWithEmail = await this.prisma.user.findUnique({
+      where: {
+        email,
+      },
+    });
+
+    if (existingUserWithEmail && existingUserWithEmail.id !== id) {
+      throw new ConflictException('Ya existe otro usuario con este correo.');
+    }
+
+    return this.prisma.user.update({
+      where: {
+        id,
+      },
+      data: {
+        name,
+        email,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
   }
-
-  const existingUserWithEmail = await this.prisma.user.findUnique({
-    where: {
-      email,
-    },
-  });
-
-  if (existingUserWithEmail && existingUserWithEmail.id !== id) {
-    throw new ConflictException('Ya existe otro usuario con este correo.');
-  }
-
-  return this.prisma.user.update({
-    where: {
-      id,
-    },
-    data: {
-      name,
-      email,
-    },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      createdAt: true,
-      updatedAt: true,
-    },
-  });
-}
-
 }

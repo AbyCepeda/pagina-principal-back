@@ -36,14 +36,20 @@ export class AuthService {
   /**
    * Inicia sesión.
    *
-   * Busca el usuario por correo, valida la contraseña con bcrypt
-   * y genera un JWT con los datos mínimos del usuario.
+   * Busca el usuario por correo, valida que esté activo,
+   * valida la contraseña con bcrypt y genera un JWT.
    */
   async login(loginDto: LoginDto) {
     const user = await this.usersService.findByEmail(loginDto.email);
 
     if (!user) {
       throw new UnauthorizedException('Correo o contraseña incorrectos.');
+    }
+
+    if (!user.isActive) {
+      throw new UnauthorizedException(
+        'Tu usuario está desactivado. Contacta al administrador.',
+      );
     }
 
     const isPasswordValid = await bcrypt.compare(
@@ -73,6 +79,7 @@ export class AuthService {
           name: user.name,
           email: user.email,
           role: user.role,
+          isActive: user.isActive,
         },
       },
     };
@@ -82,13 +89,19 @@ export class AuthService {
    * Obtiene el usuario autenticado desde base de datos.
    *
    * Esto permite validar que el usuario todavía exista
-   * aunque el token sea técnicamente válido.
+   * y que siga activo aunque el token sea válido.
    */
   async me(userId: number) {
     const user = await this.usersService.findById(userId);
 
     if (!user) {
       throw new UnauthorizedException('Usuario no encontrado.');
+    }
+
+    if (!user.isActive) {
+      throw new UnauthorizedException(
+        'Tu usuario está desactivado. Contacta al administrador.',
+      );
     }
 
     return {
@@ -112,6 +125,12 @@ export class AuthService {
 
     if (!user) {
       throw new UnauthorizedException('Usuario no encontrado.');
+    }
+
+    if (!user.isActive) {
+      throw new UnauthorizedException(
+        'Tu usuario está desactivado. Contacta al administrador.',
+      );
     }
 
     const isCurrentPasswordValid = await bcrypt.compare(
@@ -149,21 +168,29 @@ export class AuthService {
   }
 
   /**
- * Actualiza el perfil del usuario autenticado.
- *
- * Permite cambiar nombre y correo.
- */
-async updateProfile(userId: number, updateProfileDto: UpdateProfileDto) {
-  const updatedUser = await this.usersService.updateProfile(
-    userId,
-    updateProfileDto.name.trim(),
-    updateProfileDto.email.trim().toLowerCase(),
-  );
+   * Actualiza el perfil del usuario autenticado.
+   *
+   * Permite cambiar nombre y correo.
+   */
+  async updateProfile(userId: number, updateProfileDto: UpdateProfileDto) {
+    const user = await this.usersService.findById(userId);
 
-  return {
-    success: true,
-    message: 'Perfil actualizado correctamente',
-    data: updatedUser,
-  };
-}
+    if (!user.isActive) {
+      throw new UnauthorizedException(
+        'Tu usuario está desactivado. Contacta al administrador.',
+      );
+    }
+
+    const updatedUser = await this.usersService.updateProfile(
+      userId,
+      updateProfileDto.name.trim(),
+      updateProfileDto.email.trim().toLowerCase(),
+    );
+
+    return {
+      success: true,
+      message: 'Perfil actualizado correctamente',
+      data: updatedUser,
+    };
+  }
 }
