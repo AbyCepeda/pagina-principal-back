@@ -6,14 +6,16 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
 import { ContactService } from './contact.service';
 import { CreateContactDto } from './dto/create-contact.dto';
-import { RolesGuard } from 'src/auth/guards/roles.guard';
+import { GetContactMessagesQueryDto } from './dto/get-contact-messages-query.dto';
 
 @Controller('contact')
 export class ContactController {
@@ -33,12 +35,17 @@ export class ContactController {
    * Ruta privada.
    *
    * Solo usuarios ADMIN pueden listar mensajes.
+   * Permite búsqueda, filtros y paginación:
+   *
+   * GET /contact?page=1&limit=10
+   * GET /contact?page=1&limit=10&search=web
+   * GET /contact?page=1&limit=10&isRead=false
    */
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
   @Get()
-  findAll() {
-    return this.contactService.findAll();
+  findAll(@Query() query: GetContactMessagesQueryDto) {
+    return this.contactService.findAll(query);
   }
 
   /**

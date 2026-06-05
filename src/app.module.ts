@@ -10,6 +10,7 @@ import { ServicesModule } from './services/services.module';
 import { UsersModule } from './users/users.module';
 import { DashboardController } from './dashboard/dashboard.controller';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { ContactOptionsModule } from './contact-options/contact-options.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
     ProjectsModule,
     ServicesModule,
     DashboardModule,
+    ContactOptionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

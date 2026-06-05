@@ -14,11 +14,13 @@ datasource db {
 model ContactMessage {
   id          Int      @id @default(autoincrement())
   name        String
+  email       String   @default("")
   projectType String
   budget      String
-  message     String   @db.Text
+  message     String
   isRead      Boolean  @default(false)
   createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
 }
 
 enum Role {
@@ -38,16 +40,16 @@ model User {
 }
 
 model Project {
-  id          Int      @id @default(autoincrement())
-  title       String
-  type        String
-  description String   @db.Text
-  image       String?
-  status      String
+  id           Int      @id @default(autoincrement())
+  title        String
+  type         String
+  description  String   @db.Text
+  image        String?
+  status       String
   technologies Json
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
 
 model Service {
@@ -58,4 +60,22 @@ model Service {
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+enum ContactOptionType {
+  PROJECT_TYPE
+  BUDGET
+}
+
+model ContactOption {
+  id        Int               @id @default(autoincrement())
+  type      ContactOptionType
+  label     String
+  value     String
+  sortOrder Int               @default(0)
+  isActive  Boolean           @default(true)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  @@unique([type, value])
 }

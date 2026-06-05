@@ -1,4 +1,4 @@
-import { PrismaClient, Role } from '@prisma/client'
+import { ContactOptionType, PrismaClient, Role } from '@prisma/client'
 import { PrismaMariaDb } from '@prisma/adapter-mariadb'
 import * as bcrypt from 'bcrypt'
 
@@ -24,8 +24,9 @@ const prisma = new PrismaClient({
 /**
  * Seed inicial del sistema.
  *
- * Crea un usuario ADMIN si todavía no existe.
- * Esto permite entrar al panel cuando la base de datos está vacía.
+ * Crea/verifica:
+ * - Usuario ADMIN inicial
+ * - Opciones iniciales del formulario de contacto
  */
 async function main() {
   const adminEmail = 'admin@test.com'
@@ -39,29 +40,136 @@ async function main() {
 
   if (existingAdmin) {
     console.log(`El usuario admin ya existe: ${adminEmail}`)
-    return
+  } else {
+    const hashedPassword = await bcrypt.hash(adminPassword, 10)
+
+    const admin = await prisma.user.create({
+      data: {
+        name: 'Administrador',
+        email: adminEmail,
+        password: hashedPassword,
+        role: Role.ADMIN,
+        isActive: true,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+      },
+    })
+
+    console.log('Usuario ADMIN creado correctamente:')
+    console.log(admin)
   }
 
-  const hashedPassword = await bcrypt.hash(adminPassword, 10)
-
-  const admin = await prisma.user.create({
-    data: {
-      name: 'Administrador',
-      email: adminEmail,
-      password: hashedPassword,
-      role: Role.ADMIN,
+  const contactOptions = [
+    {
+      type: ContactOptionType.PROJECT_TYPE,
+      label: 'Página web',
+      value: 'Página web',
+      sortOrder: 1,
     },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      createdAt: true,
+    {
+      type: ContactOptionType.PROJECT_TYPE,
+      label: 'App móvil',
+      value: 'App móvil',
+      sortOrder: 2,
     },
-  })
+    {
+      type: ContactOptionType.PROJECT_TYPE,
+      label: 'Sistema administrativo',
+      value: 'Sistema administrativo',
+      sortOrder: 3,
+    },
+    {
+      type: ContactOptionType.PROJECT_TYPE,
+      label: 'Tienda en línea',
+      value: 'Tienda en línea',
+      sortOrder: 4,
+    },
+    {
+      type: ContactOptionType.PROJECT_TYPE,
+      label: 'Landing page',
+      value: 'Landing page',
+      sortOrder: 5,
+    },
+    {
+      type: ContactOptionType.PROJECT_TYPE,
+      label: 'Mantenimiento o mejora',
+      value: 'Mantenimiento o mejora',
+      sortOrder: 6,
+    },
+    {
+      type: ContactOptionType.PROJECT_TYPE,
+      label: 'Otro',
+      value: 'Otro',
+      sortOrder: 7,
+    },
+    {
+      type: ContactOptionType.BUDGET,
+      label: 'Menos de $5,000 MXN',
+      value: 'Menos de $5,000 MXN',
+      sortOrder: 1,
+    },
+    {
+      type: ContactOptionType.BUDGET,
+      label: '$5,000 - $10,000 MXN',
+      value: '$5,000 - $10,000 MXN',
+      sortOrder: 2,
+    },
+    {
+      type: ContactOptionType.BUDGET,
+      label: '$10,000 - $20,000 MXN',
+      value: '$10,000 - $20,000 MXN',
+      sortOrder: 3,
+    },
+    {
+      type: ContactOptionType.BUDGET,
+      label: '$20,000 - $40,000 MXN',
+      value: '$20,000 - $40,000 MXN',
+      sortOrder: 4,
+    },
+    {
+      type: ContactOptionType.BUDGET,
+      label: 'Más de $40,000 MXN',
+      value: 'Más de $40,000 MXN',
+      sortOrder: 5,
+    },
+    {
+      type: ContactOptionType.BUDGET,
+      label: 'Aún no lo sé',
+      value: 'Aún no lo sé',
+      sortOrder: 6,
+    },
+  ]
 
-  console.log('Usuario ADMIN creado correctamente:')
-  console.log(admin)
+  for (const option of contactOptions) {
+    await prisma.contactOption.upsert({
+      where: {
+        type_value: {
+          type: option.type,
+          value: option.value,
+        },
+      },
+      update: {
+        label: option.label,
+        sortOrder: option.sortOrder,
+        isActive: true,
+      },
+      create: {
+        type: option.type,
+        label: option.label,
+        value: option.value,
+        sortOrder: option.sortOrder,
+        isActive: true,
+      },
+    })
+  }
+
+  console.log('Opciones de contacto verificadas correctamente.')
 }
 
 main()
