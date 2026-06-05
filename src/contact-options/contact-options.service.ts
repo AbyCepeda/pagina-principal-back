@@ -15,14 +15,28 @@ export class ContactOptionsService {
 
   /**
    * Crea una opción para los selects del formulario de contacto.
+   *
+   * Si no se envía sortOrder, se asigna automáticamente
+   * el siguiente orden disponible dentro del mismo tipo.
    */
   async create(createContactOptionDto: CreateContactOptionDto) {
+    const lastOption = await this.prisma.contactOption.findFirst({
+      where: {
+        type: createContactOptionDto.type,
+      },
+      orderBy: {
+        sortOrder: 'desc',
+      },
+    });
+
+    const nextSortOrder = (lastOption?.sortOrder ?? 0) + 1;
+
     const option = await this.prisma.contactOption.create({
       data: {
         type: createContactOptionDto.type,
         label: createContactOptionDto.label.trim(),
         value: createContactOptionDto.value.trim(),
-        sortOrder: createContactOptionDto.sortOrder ?? 0,
+        sortOrder: createContactOptionDto.sortOrder ?? nextSortOrder,
         isActive: createContactOptionDto.isActive ?? true,
       },
     });
