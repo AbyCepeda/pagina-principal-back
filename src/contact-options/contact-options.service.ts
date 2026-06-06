@@ -53,7 +53,19 @@ export class ContactOptionsService {
    *
    * En admin puede consultar activas e inactivas.
    */
+  /**
+   * Lista opciones para admin con filtros y paginación.
+   *
+   * Permite:
+   * - Filtrar por tipo
+   * - Filtrar activas/inactivas
+   * - Traer datos por página para no cargar todo de golpe
+   */
   async findAll(query: GetContactOptionsQueryDto) {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 10;
+    const skip = (page - 1) * limit;
+
     const where: Prisma.ContactOptionWhereInput = {
       ...(query.type ? { type: query.type } : {}),
       ...(typeof query.isActive === 'boolean'
@@ -61,25 +73,43 @@ export class ContactOptionsService {
         : {}),
     };
 
-    const options = await this.prisma.contactOption.findMany({
-      where,
-      orderBy: [
-        {
-          type: 'asc',
-        },
-        {
-          sortOrder: 'asc',
-        },
-        {
-          label: 'asc',
-        },
-      ],
-    });
+    const [options, total] = await this.prisma.$transaction([
+      this.prisma.contactOption.findMany({
+        where,
+        orderBy: [
+          {
+            type: 'asc',
+          },
+          {
+            sortOrder: 'asc',
+          },
+          {
+            label: 'asc',
+          },
+        ],
+        skip,
+        take: limit,
+      }),
+
+      this.prisma.contactOption.count({
+        where,
+      }),
+    ]);
+
+    const totalPages = Math.ceil(total / limit);
 
     return {
       success: true,
       message: 'Opciones obtenidas correctamente',
       data: options,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
+      },
     };
   }
 
