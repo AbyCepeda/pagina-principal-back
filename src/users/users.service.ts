@@ -1,344 +1,217 @@
 import {
-  BadRequestException,
-  ConflictException,
   Injectable,
+  InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { Role } from '@prisma/client';
-import * as bcrypt from 'bcrypt';
-import { RegisterDto } from '../auth/dto/register.dto';
 import { PrismaService } from '../prisma/prisma.service';
+import { CreateProjectDto } from 'src/projects/dto/create-project.dto';
+import { GetProjectsQueryDto } from './dto/get-users-query.dto';
+import { UpdateProjectDto } from 'src/projects/dto/update-project.dto';
+;
 
 @Injectable()
-export class UsersService {
+export class ProjectsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /**
-   * Crea un usuario nuevo.
-   *
-   * Valida que no exista otro usuario con el mismo correo
-   * y guarda la contraseña encriptada con bcrypt.
-   */
-  async create(registerDto: RegisterDto) {
-    const existingUser = await this.prisma.user.findUnique({
-      where: {
-        email: registerDto.email,
-      },
-    });
+  async create(createProjectDto: CreateProjectDto) {
+    try {
+      const project = await this.prisma.project.create({
+        data: {
+          title: createProjectDto.title,
+          type: createProjectDto.type,
+          description: createProjectDto.description,
+          image: createProjectDto.image,
+          status: createProjectDto.status,
+          technologies: createProjectDto.technologies,
+          isActive: createProjectDto.isActive ?? true,
+        },
+      });
 
-    if (existingUser) {
-      throw new ConflictException('Ya existe un usuario con este correo.');
+      return {
+        success: true,
+        message: 'Proyecto creado correctamente',
+        data: project,
+      };
+    } catch (error) {
+      console.error('Error al crear proyecto:', error);
+
+      throw new InternalServerErrorException('No se pudo crear el proyecto.');
     }
-
-    const hashedPassword = await bcrypt.hash(registerDto.password, 10);
-
-    const user = await this.prisma.user.create({
-      data: {
-        name: registerDto.name,
-        email: registerDto.email,
-        password: hashedPassword,
-        role: registerDto.role ?? Role.USER,
-        isActive: true,
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
-
-    return user;
   }
 
   /**
-   * Lista todos los usuarios sin exponer contraseñas.
-   */
-  async findAll() {
-    const users = await this.prisma.user.findMany({
-      orderBy: {
-        createdAt: 'desc',
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
-
-    return {
-      success: true,
-      message: 'Usuarios obtenidos correctamente',
-      data: users,
-    };
-  }
-
-  /**
-   * Busca usuario por email.
+   * Lista proyectos para el panel administrativo con paginación.
    *
-   * Este método sí devuelve password porque se usa para login.
+   * Permite cargar los proyectos por partes para evitar traer todos
+   * los registros de golpe cuando el catálogo crezca.
    */
-  async findByEmail(email: string) {
-    return this.prisma.user.findUnique({
-      where: {
-        email,
-      },
-    });
-  }
+  async findAll(query: GetProjectsQueryDto) {
+    try {
+      const page = query.page ?? 1;
+      const limit = query.limit ?? 10;
+      const skip = (page - 1) * limit;
 
-  /**
-   * Busca usuario por id sin exponer password.
-   *
-   * Se usa para /auth/me y respuestas públicas internas.
-   */
-  async findById(id: number) {
-    const user = await this.prisma.user.findUnique({
-      where: {
-        id,
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
+      const [projects, total] = await this.prisma.$transaction([
+        this.prisma.project.findMany({
+          orderBy: {
+            createdAt: 'desc',
+          },
+          skip,
+          take: limit,
+        }),
 
-    if (!user) {
-      throw new NotFoundException('Usuario no encontrado.');
-    }
+        this.prisma.project.count(),
+      ]);
 
-    return user;
-  }
+      const totalPages = Math.ceil(total / limit);
 
-  /**
-   * Busca usuario por id incluyendo password.
-   *
-   * Se usa solo para procesos internos como cambio de contraseña.
-   */
-  async findByIdWithPassword(id: number) {
-    return this.prisma.user.findUnique({
-      where: {
-        id,
-      },
-    });
-  }
+      return {
+        success: true,
+        message: 'Proyectos obtenidos correctamente',
+        data: projects,
+        meta: {
+          page,
+          limit,
+          total,
+          totalPages,
+          hasNextPage: page < totalPages,
+          hasPreviousPage: page > 1,
+        },
+      };
+    } catch (error) {
+      console.error('Error al obtener proyectos:', error);
 
-  /**
-   * Actualiza la contraseña de un usuario.
-   *
-   * Recibe la contraseña ya encriptada.
-   */
-  async updatePassword(id: number, hashedPassword: string) {
-    return this.prisma.user.update({
-      where: {
-        id,
-      },
-      data: {
-        password: hashedPassword,
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        isActive: true,
-        updatedAt: true,
-      },
-    });
-  }
-
-  /**
-   * Actualiza el rol de un usuario.
-   *
-   * Evita que el usuario actual se quite su propio rol ADMIN.
-   */
-  async updateRole(id: number, role: Role, currentUserId: number) {
-    const user = await this.prisma.user.findUnique({
-      where: {
-        id,
-      },
-    });
-
-    if (!user) {
-      throw new NotFoundException('Usuario no encontrado.');
-    }
-
-    if (user.id === currentUserId && role !== Role.ADMIN) {
-      throw new BadRequestException(
-        'No puedes quitarte tu propio rol de administrador.',
+      throw new InternalServerErrorException(
+        'No se pudieron obtener los proyectos.',
       );
     }
-
-    const updatedUser = await this.prisma.user.update({
-      where: {
-        id,
-      },
-      data: {
-        role,
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
-
-    return {
-      success: true,
-      message: 'Rol actualizado correctamente',
-      data: updatedUser,
-    };
   }
 
-  /**
-   * Activa o desactiva un usuario.
-   *
-   * Evita que el administrador se desactive a sí mismo.
-   */
-  async updateStatus(id: number, isActive: boolean, currentUserId: number) {
-    const user = await this.prisma.user.findUnique({
-      where: {
-        id,
-      },
-    });
+  async findPublic() {
+    try {
+      const projects = await this.prisma.project.findMany({
+        where: {
+          isActive: true,
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      });
 
-    if (!user) {
-      throw new NotFoundException('Usuario no encontrado.');
-    }
+      return {
+        success: true,
+        message: 'Proyectos públicos obtenidos correctamente',
+        data: projects,
+      };
+    } catch (error) {
+      console.error('Error al obtener proyectos públicos:', error);
 
-    if (user.id === currentUserId) {
-      throw new BadRequestException(
-        'No puedes desactivar tu propio usuario.',
+      throw new InternalServerErrorException(
+        'No se pudieron obtener los proyectos públicos.',
       );
     }
-
-    const updatedUser = await this.prisma.user.update({
-      where: {
-        id,
-      },
-      data: {
-        isActive,
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
-
-    return {
-      success: true,
-      message: isActive
-        ? 'Usuario activado correctamente'
-        : 'Usuario desactivado correctamente',
-      data: updatedUser,
-    };
   }
 
-  /**
-   * Elimina un usuario.
-   *
-   * Evita que el usuario autenticado se elimine a sí mismo.
-   */
-  async remove(id: number, currentUserId: number) {
-    const user = await this.prisma.user.findUnique({
-      where: {
-        id,
-      },
-    });
+  async findOne(id: number) {
+    try {
+      const project = await this.prisma.project.findUnique({
+        where: {
+          id,
+        },
+      });
 
-    if (!user) {
-      throw new NotFoundException('Usuario no encontrado.');
+      if (!project) {
+        throw new NotFoundException('Proyecto no encontrado.');
+      }
+
+      return {
+        success: true,
+        message: 'Proyecto obtenido correctamente',
+        data: project,
+      };
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+
+      console.error('Error al obtener proyecto:', error);
+
+      throw new InternalServerErrorException('No se pudo obtener el proyecto.');
     }
-
-    if (user.id === currentUserId) {
-      throw new BadRequestException('No puedes eliminar tu propio usuario.');
-    }
-
-    const deletedUser = await this.prisma.user.delete({
-      where: {
-        id,
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
-
-    return {
-      success: true,
-      message: 'Usuario eliminado correctamente',
-      data: deletedUser,
-    };
   }
 
-  /**
-   * Actualiza el perfil del usuario autenticado.
-   *
-   * Valida que el nuevo correo no esté siendo usado por otro usuario.
-   */
-  async updateProfile(id: number, name: string, email: string) {
-    const user = await this.prisma.user.findUnique({
-      where: {
-        id,
-      },
-    });
+  async update(id: number, updateProjectDto: UpdateProjectDto) {
+    try {
+      const project = await this.prisma.project.findUnique({
+        where: {
+          id,
+        },
+      });
 
-    if (!user) {
-      throw new NotFoundException('Usuario no encontrado.');
+      if (!project) {
+        throw new NotFoundException('Proyecto no encontrado.');
+      }
+
+      const updatedProject = await this.prisma.project.update({
+        where: {
+          id,
+        },
+        data: {
+          ...updateProjectDto,
+        },
+      });
+
+      return {
+        success: true,
+        message: 'Proyecto actualizado correctamente',
+        data: updatedProject,
+      };
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+
+      console.error('Error al actualizar proyecto:', error);
+
+      throw new InternalServerErrorException(
+        'No se pudo actualizar el proyecto.',
+      );
     }
+  }
 
-    const existingUserWithEmail = await this.prisma.user.findUnique({
-      where: {
-        email,
-      },
-    });
+  async remove(id: number) {
+    try {
+      const project = await this.prisma.project.findUnique({
+        where: {
+          id,
+        },
+      });
 
-    if (existingUserWithEmail && existingUserWithEmail.id !== id) {
-      throw new ConflictException('Ya existe otro usuario con este correo.');
+      if (!project) {
+        throw new NotFoundException('Proyecto no encontrado.');
+      }
+
+      const deletedProject = await this.prisma.project.delete({
+        where: {
+          id,
+        },
+      });
+
+      return {
+        success: true,
+        message: 'Proyecto eliminado correctamente',
+        data: deletedProject,
+      };
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+
+      console.error('Error al eliminar proyecto:', error);
+
+      throw new InternalServerErrorException(
+        'No se pudo eliminar el proyecto.',
+      );
     }
-
-    return this.prisma.user.update({
-      where: {
-        id,
-      },
-      data: {
-        name,
-        email,
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
   }
 }
