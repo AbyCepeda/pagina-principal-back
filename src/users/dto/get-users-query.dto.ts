@@ -1,7 +1,16 @@
+import { Role } from '@prisma/client';
 import { Transform } from 'class-transformer';
-import { IsInt, IsOptional, Max, Min } from 'class-validator';
+import {
+  IsBoolean,
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+} from 'class-validator';
 
-export class GetProjectsQueryDto {
+export class GetUsersQueryDto {
   @IsOptional()
   @Transform(({ value }) => Number(value))
   @IsInt({ message: 'page debe ser un número entero.' })
@@ -14,4 +23,21 @@ export class GetProjectsQueryDto {
   @Min(1, { message: 'limit debe ser mínimo 1.' })
   @Max(50, { message: 'limit no debe ser mayor a 50.' })
   limit?: number = 10;
+
+  @IsOptional()
+  @IsString({ message: 'search debe ser texto.' })
+  search?: string;
+
+  @IsOptional()
+  @IsEnum(Role, { message: 'role debe ser USER o ADMIN.' })
+  role?: Role;
+
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return value;
+  })
+  @IsBoolean({ message: 'isActive debe ser true o false.' })
+  isActive?: boolean;
 }

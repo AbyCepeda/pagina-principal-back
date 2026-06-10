@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateServiceDto } from './dto/create-service.dto';
+import { GetServicesQueryDto } from './dto/get-services-query.dto';
 import { UpdateServiceDto } from './dto/update-service.dto';
 
 @Injectable()
@@ -34,23 +35,51 @@ export class ServicesService {
     }
   }
 
-  async findAll() {
+  /**
+   * Lista servicios para el panel administrativo con paginación.
+   *
+   * Permite cargar los servicios por partes para evitar traer todos
+   * los registros de golpe cuando el catálogo crezca.
+   */
+  async findAll(query: GetServicesQueryDto) {
     try {
-      const services = await this.prisma.service.findMany({
-        orderBy: {
-          createdAt: 'desc',
-        },
-      });
+      const page = query.page ?? 1;
+      const limit = query.limit ?? 10;
+      const skip = (page - 1) * limit;
+
+      const [services, total] = await this.prisma.$transaction([
+        this.prisma.service.findMany({
+          orderBy: {
+            createdAt: 'desc',
+          },
+          skip,
+          take: limit,
+        }),
+
+        this.prisma.service.count(),
+      ]);
+
+      const totalPages = Math.ceil(total / limit);
 
       return {
         success: true,
         message: 'Servicios obtenidos correctamente',
         data: services,
+        meta: {
+          page,
+          limit,
+          total,
+          totalPages,
+          hasNextPage: page < totalPages,
+          hasPreviousPage: page > 1,
+        },
       };
     } catch (error) {
       console.error('Error al obtener servicios:', error);
 
-      throw new InternalServerErrorException('No se pudieron obtener los servicios.');
+      throw new InternalServerErrorException(
+        'No se pudieron obtener los servicios.',
+      );
     }
   }
 
@@ -140,7 +169,9 @@ export class ServicesService {
 
       console.error('Error al actualizar servicio:', error);
 
-      throw new InternalServerErrorException('No se pudo actualizar el servicio.');
+      throw new InternalServerErrorException(
+        'No se pudo actualizar el servicio.',
+      );
     }
   }
 
@@ -174,7 +205,9 @@ export class ServicesService {
 
       console.error('Error al eliminar servicio:', error);
 
-      throw new InternalServerErrorException('No se pudo eliminar el servicio.');
+      throw new InternalServerErrorException(
+        'No se pudo eliminar el servicio.',
+      );
     }
   }
 }

@@ -175,6 +175,10 @@ export class AuthService {
   async updateProfile(userId: number, updateProfileDto: UpdateProfileDto) {
     const user = await this.usersService.findById(userId);
 
+    if (!user) {
+      throw new UnauthorizedException('Usuario no encontrado.');
+    }
+
     if (!user.isActive) {
       throw new UnauthorizedException(
         'Tu usuario está desactivado. Contacta al administrador.',

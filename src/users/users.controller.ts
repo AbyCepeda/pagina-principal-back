@@ -5,85 +5,76 @@ import {
   Get,
   Param,
   Patch,
-  Post,
   Query,
   UseGuards,
 } from '@nestjs/common';
 import { Role } from '@prisma/client';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
-import { ProjectsService } from './users.service';
-import { GetProjectsQueryDto } from './dto/get-users-query.dto';
-import { CreateProjectDto } from 'src/projects/dto/create-project.dto';
-import { UpdateProjectDto } from 'src/projects/dto/update-project.dto';
+import { GetUsersQueryDto } from './dto/get-users-query.dto';
+import { UpdateUserRoleDto } from './dto/update-user-role.dto';
+import { UpdateUserStatusDto } from './dto/update-user-status.dto';
+import { UsersService } from './users.service';
 
+type CurrentUserPayload = {
+  id: number;
+  email: string;
+  role: Role;
+};
 
-@Controller('projects')
-export class ProjectsController {
-  constructor(private readonly projectsService: ProjectsService) {}
-
-  /**
-   * Ruta pública para la landing.
-   * Solo muestra proyectos activos.
-   */
-  @Get('public')
-  findPublic() {
-    return this.projectsService.findPublic();
-  }
+@Controller('users')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(Role.ADMIN)
+export class UsersController {
+  constructor(private readonly usersService: UsersService) {}
 
   /**
-   * Ruta privada.
-   * Solo ADMIN puede ver todos los proyectos, activos e inactivos.
-   *
-   * Soporta paginación:
-   * /projects?page=1&limit=10
+   * Lista usuarios del sistema con paginación, búsqueda y filtros.
    */
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
   @Get()
-  findAll(@Query() query: GetProjectsQueryDto) {
-    return this.projectsService.findAll(query);
+  findAll(@Query() query: GetUsersQueryDto) {
+    return this.usersService.findAll(query);
   }
 
   /**
-   * Ruta pública para obtener un proyecto.
+   * Cambia el rol de un usuario.
    */
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.projectsService.findOne(Number(id));
+  @Patch(':id/role')
+  updateRole(
+    @Param('id') id: string,
+    @Body() updateUserRoleDto: UpdateUserRoleDto,
+    @CurrentUser() currentUser: CurrentUserPayload,
+  ) {
+    return this.usersService.updateRole(
+      Number(id),
+      updateUserRoleDto.role,
+      currentUser.id,
+    );
   }
 
   /**
-   * Ruta privada.
-   * Solo ADMIN puede crear proyectos.
+   * Activa o desactiva un usuario.
    */
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
-  @Post()
-  create(@Body() createProjectDto: CreateProjectDto) {
-    return this.projectsService.create(createProjectDto);
+  @Patch(':id/status')
+  updateStatus(
+    @Param('id') id: string,
+    @Body() updateUserStatusDto: UpdateUserStatusDto,
+    @CurrentUser() currentUser: CurrentUserPayload,
+  ) {
+    return this.usersService.updateStatus(
+      Number(id),
+      updateUserStatusDto.isActive,
+      currentUser.id,
+    );
   }
 
   /**
-   * Ruta privada.
-   * Solo ADMIN puede editar proyectos.
+   * Elimina un usuario.
    */
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateProjectDto: UpdateProjectDto) {
-    return this.projectsService.update(Number(id), updateProjectDto);
-  }
-
-  /**
-   * Ruta privada.
-   * Solo ADMIN puede eliminar proyectos.
-   */
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.projectsService.remove(Number(id));
+  remove(@Param('id') id: string, @CurrentUser() currentUser: CurrentUserPayload) {
+    return this.usersService.remove(Number(id), currentUser.id);
   }
 }
