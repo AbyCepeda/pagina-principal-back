@@ -12,15 +12,32 @@ datasource db {
 }
 
 model ContactMessage {
-  id          Int      @id @default(autoincrement())
+  id          Int             @id @default(autoincrement())
   name        String
-  email       String   @default("")
+  email       String          @default("")
   projectType String
   budget      String
-  message     String
-  isRead      Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @default(now()) @updatedAt
+  message     String          @db.Text
+  isRead      Boolean         @default(false)
+  status      ContactStatus   @default(NEW)
+  priority    ContactPriority @default(NORMAL)
+  adminNotes  String?         @db.Text
+  contactedAt DateTime?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @default(now()) @updatedAt
+}
+
+enum ContactStatus {
+  NEW
+  REVIEWING
+  CONTACTED
+  CLOSED
+}
+
+enum ContactPriority {
+  LOW
+  NORMAL
+  HIGH
 }
 
 enum Role {

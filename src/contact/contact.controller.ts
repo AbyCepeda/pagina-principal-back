@@ -16,6 +16,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { ContactService } from './contact.service';
 import { CreateContactDto } from './dto/create-contact.dto';
 import { GetContactMessagesQueryDto } from './dto/get-contact-messages-query.dto';
+import { UpdateContactMessageDto } from './dto/update-contact-message.dto';
 
 @Controller('contact')
 export class ContactController {
@@ -35,11 +36,7 @@ export class ContactController {
    * Ruta privada.
    *
    * Solo usuarios ADMIN pueden listar mensajes.
-   * Permite búsqueda, filtros y paginación:
-   *
-   * GET /contact?page=1&limit=10
-   * GET /contact?page=1&limit=10&search=web
-   * GET /contact?page=1&limit=10&isRead=false
+   * Permite búsqueda, filtros y paginación.
    */
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
@@ -52,10 +49,6 @@ export class ContactController {
    * Ruta privada.
    *
    * Solo ADMIN puede consultar cuántos mensajes no leídos hay.
-   *
-   * Importante:
-   * Esta ruta debe ir ANTES de @Get(':id')
-   * para que Nest no interprete "unread" como si fuera un id.
    */
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
@@ -74,6 +67,21 @@ export class ContactController {
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.contactService.findOne(Number(id));
+  }
+
+  /**
+   * Ruta privada.
+   *
+   * Solo ADMIN puede actualizar estado, prioridad o notas internas.
+   */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @Patch(':id')
+  update(
+    @Param('id') id: string,
+    @Body() updateContactMessageDto: UpdateContactMessageDto,
+  ) {
+    return this.contactService.update(Number(id), updateContactMessageDto);
   }
 
   /**

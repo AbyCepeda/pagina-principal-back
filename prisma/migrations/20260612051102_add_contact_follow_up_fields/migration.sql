@@ -1,0 +1,6 @@
+-- AlterTable
+ALTER TABLE `ContactMessage` ADD COLUMN `adminNotes` TEXT NULL,
+    ADD COLUMN `contactedAt` DATETIME(3) NULL,
+    ADD COLUMN `priority` ENUM('LOW', 'NORMAL', 'HIGH') NOT NULL DEFAULT 'NORMAL',
+    ADD COLUMN `status` ENUM('NEW', 'REVIEWING', 'CONTACTED', 'CLOSED') NOT NULL DEFAULT 'NEW',
+    MODIFY `message` TEXT NOT NULL;

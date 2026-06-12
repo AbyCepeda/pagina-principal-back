@@ -1,6 +1,8 @@
+import { ContactPriority, ContactStatus } from '@prisma/client';
 import { Transform } from 'class-transformer';
 import {
   IsBoolean,
+  IsEnum,
   IsInt,
   IsOptional,
   IsString,
@@ -34,4 +36,16 @@ export class GetContactMessagesQueryDto {
   })
   @IsBoolean({ message: 'isRead debe ser true o false.' })
   isRead?: boolean;
+
+  @IsOptional()
+  @IsEnum(ContactStatus, {
+    message: 'status debe ser NEW, REVIEWING, CONTACTED o CLOSED.',
+  })
+  status?: ContactStatus;
+
+  @IsOptional()
+  @IsEnum(ContactPriority, {
+    message: 'priority debe ser LOW, NORMAL o HIGH.',
+  })
+  priority?: ContactPriority;
 }

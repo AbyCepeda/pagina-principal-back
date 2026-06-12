@@ -1,12 +1,14 @@
 import {
+  BadRequestException,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { ContactStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateContactDto } from './dto/create-contact.dto';
 import { GetContactMessagesQueryDto } from './dto/get-contact-messages-query.dto';
+import { UpdateContactMessageDto } from './dto/update-contact-message.dto';
 
 @Injectable()
 export class ContactService {
@@ -43,11 +45,6 @@ export class ContactService {
 
   /**
    * Lista mensajes de contacto con búsqueda, filtro y paginación.
-   *
-   * Permite:
-   * - Buscar por nombre, correo, tipo de proyecto, presupuesto o mensaje.
-   * - Filtrar por leído/no leído.
-   * - Paginar resultados.
    */
   async findAll(query: GetContactMessagesQueryDto) {
     try {
@@ -61,6 +58,18 @@ export class ContactService {
         ...(typeof query.isRead === 'boolean'
           ? {
               isRead: query.isRead,
+            }
+          : {}),
+
+        ...(query.status
+          ? {
+              status: query.status,
+            }
+          : {}),
+
+        ...(query.priority
+          ? {
+              priority: query.priority,
             }
           : {}),
 
@@ -89,6 +98,11 @@ export class ContactService {
                 },
                 {
                   message: {
+                    contains: search,
+                  },
+                },
+                {
+                  adminNotes: {
                     contains: search,
                   },
                 },
@@ -168,6 +182,10 @@ export class ContactService {
    */
   async findOne(id: number) {
     try {
+      if (!Number.isInteger(id)) {
+        throw new BadRequestException('Id inválido.');
+      }
+
       const contactMessage = await this.prisma.contactMessage.findUnique({
         where: {
           id,
@@ -184,7 +202,10 @@ export class ContactService {
         data: contactMessage,
       };
     } catch (error) {
-      if (error instanceof NotFoundException) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
         throw error;
       }
 
@@ -197,10 +218,87 @@ export class ContactService {
   }
 
   /**
+   * Actualiza el seguimiento administrativo del mensaje.
+   */
+  async update(id: number, updateContactMessageDto: UpdateContactMessageDto) {
+    try {
+      if (!Number.isInteger(id)) {
+        throw new BadRequestException('Id inválido.');
+      }
+
+      const contactMessage = await this.prisma.contactMessage.findUnique({
+        where: {
+          id,
+        },
+      });
+
+      if (!contactMessage) {
+        throw new NotFoundException('Mensaje de contacto no encontrado.');
+      }
+
+      const status = updateContactMessageDto.status;
+
+      const updatedContactMessage = await this.prisma.contactMessage.update({
+        where: {
+          id,
+        },
+        data: {
+          ...(status ? { status } : {}),
+          ...(updateContactMessageDto.priority
+            ? { priority: updateContactMessageDto.priority }
+            : {}),
+          ...(typeof updateContactMessageDto.adminNotes === 'string'
+            ? { adminNotes: updateContactMessageDto.adminNotes.trim() || null }
+            : {}),
+
+          /**
+           * Si el admin cambia el mensaje a CONTACTED,
+           * guardamos la fecha de contacto automáticamente.
+           */
+          ...(status === ContactStatus.CONTACTED && !contactMessage.contactedAt
+            ? { contactedAt: new Date(), isRead: true }
+            : {}),
+
+          /**
+           * Si el admin empieza a revisar/cerrar el mensaje,
+           * también lo consideramos leído.
+           */
+          ...(status === ContactStatus.REVIEWING || status === ContactStatus.CLOSED
+            ? { isRead: true }
+            : {}),
+        },
+      });
+
+      return {
+        success: true,
+        message: 'Mensaje actualizado correctamente',
+        data: updatedContactMessage,
+      };
+    } catch (error) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
+        throw error;
+      }
+
+      console.error('Error al actualizar mensaje de contacto:', error);
+
+      throw new InternalServerErrorException(
+        'No se pudo actualizar el mensaje de contacto.',
+      );
+    }
+  }
+
+  /**
    * Marca un mensaje como leído.
    */
   async markAsRead(id: number) {
     try {
+      if (!Number.isInteger(id)) {
+        throw new BadRequestException('Id inválido.');
+      }
+
       const contactMessage = await this.prisma.contactMessage.findUnique({
         where: {
           id,
@@ -226,7 +324,10 @@ export class ContactService {
         data: updatedContactMessage,
       };
     } catch (error) {
-      if (error instanceof NotFoundException) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
         throw error;
       }
 
@@ -243,6 +344,10 @@ export class ContactService {
    */
   async remove(id: number) {
     try {
+      if (!Number.isInteger(id)) {
+        throw new BadRequestException('Id inválido.');
+      }
+
       const contactMessage = await this.prisma.contactMessage.findUnique({
         where: {
           id,
@@ -265,7 +370,10 @@ export class ContactService {
         data: contactMessage,
       };
     } catch (error) {
-      if (error instanceof NotFoundException) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
         throw error;
       }
 
