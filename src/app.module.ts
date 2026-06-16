@@ -8,9 +8,9 @@ import { HealthModule } from './health/health.module';
 import { ProjectsModule } from './projects/projects.module';
 import { ServicesModule } from './services/services.module';
 import { UsersModule } from './users/users.module';
-import { DashboardController } from './dashboard/dashboard.controller';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { ContactOptionsModule } from './contact-options/contact-options.module';
+import { LandingModule } from './landing/landing.module';
 
 @Module({
   imports: [
@@ -25,6 +25,7 @@ import { ContactOptionsModule } from './contact-options/contact-options.module';
     ServicesModule,
     DashboardModule,
     ContactOptionsModule,
+    LandingModule,
   ],
   controllers: [AppController],
   providers: [AppService],
