@@ -11,6 +11,7 @@ import { UsersModule } from './users/users.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { ContactOptionsModule } from './contact-options/contact-options.module';
 import { LandingModule } from './landing/landing.module';
+import { PlansModule } from './plans/plans.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { LandingModule } from './landing/landing.module';
     DashboardModule,
     ContactOptionsModule,
     LandingModule,
+    PlansModule,
   ],
   controllers: [AppController],
   providers: [AppService],

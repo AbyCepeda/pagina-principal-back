@@ -7,6 +7,7 @@ type LandingData = {
   projects: Awaited<ReturnType<LandingService['getPublicProjects']>>;
   projectTypes: Awaited<ReturnType<LandingService['getProjectTypeOptions']>>;
   budgets: Awaited<ReturnType<LandingService['getBudgetOptions']>>;
+  plans: Awaited<ReturnType<LandingService['getPublicPlans']>>;
 };
 
 @Injectable()
@@ -40,7 +41,7 @@ export class LandingService {
         };
       }
 
-      const [services, projects, projectTypes, budgets] =
+      const [services, projects, projectTypes, budgets, plans] =
         await this.prisma.$transaction([
           this.prisma.service.findMany({
             where: {
@@ -89,6 +90,20 @@ export class LandingService {
               },
             ],
           }),
+
+          this.prisma.plan.findMany({
+            where: {
+              isActive: true,
+            },
+            orderBy: [
+              {
+                sortOrder: 'asc',
+              },
+              {
+                createdAt: 'desc',
+              },
+            ],
+          }),
         ]);
 
       this.cachedData = {
@@ -96,6 +111,7 @@ export class LandingService {
         projects,
         projectTypes,
         budgets,
+        plans,
       };
 
       this.cachedAt = now;
@@ -165,6 +181,22 @@ export class LandingService {
         },
         {
           label: 'asc',
+        },
+      ],
+    });
+  }
+
+  private async getPublicPlans() {
+    return this.prisma.plan.findMany({
+      where: {
+        isActive: true,
+      },
+      orderBy: [
+        {
+          sortOrder: 'asc',
+        },
+        {
+          createdAt: 'desc',
         },
       ],
     });

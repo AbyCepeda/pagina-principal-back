@@ -96,3 +96,19 @@ model ContactOption {
 
   @@unique([type, value])
 }
+
+model Plan {
+  id          Int      @id @default(autoincrement())
+  slug        String   @unique
+  name        String
+  subtitle    String
+  description String   @db.Text
+  idealFor    String   @db.Text
+  features    Json
+  cta         String
+  highlight   Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

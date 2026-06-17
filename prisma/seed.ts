@@ -27,6 +27,7 @@ const prisma = new PrismaClient({
  * Crea/verifica:
  * - Usuario ADMIN inicial
  * - Opciones iniciales del formulario de contacto
+ * - Paquetes iniciales para la landing
  */
 async function main() {
   const adminEmail = 'admin@test.com'
@@ -170,6 +171,109 @@ async function main() {
   }
 
   console.log('Opciones de contacto verificadas correctamente.')
+
+  const plans = [
+    {
+      slug: 'landing-basica',
+      name: 'Landing básica',
+      subtitle: 'Presencia rápida en internet',
+      description:
+        'Ideal para negocios que necesitan una página sencilla, clara y profesional para mostrar sus servicios.',
+      idealFor: 'Negocios pequeños, emprendimientos o servicios personales.',
+      features: [
+        'Diseño responsive',
+        'Secciones informativas',
+        'Formulario de contacto',
+        'Enlaces a redes sociales',
+        'SEO básico',
+      ],
+      cta: 'Cotizar landing',
+      highlight: false,
+      isActive: true,
+      sortOrder: 1,
+    },
+    {
+      slug: 'pagina-profesional',
+      name: 'Página profesional',
+      subtitle: 'Sitio completo para captar clientes',
+      description:
+        'Una página más completa para presentar tu negocio, servicios, beneficios, proceso de trabajo y proyectos.',
+      idealFor: 'Negocios que quieren verse más serios y captar prospectos.',
+      features: [
+        'Landing personalizada',
+        'Sección de servicios',
+        'Sección de proyectos o galería',
+        'Formulario conectado a backend',
+        'Panel básico para mensajes',
+      ],
+      cta: 'Cotizar página',
+      highlight: true,
+      isActive: true,
+      sortOrder: 2,
+    },
+    {
+      slug: 'sistema-administrativo',
+      name: 'Sistema administrativo',
+      subtitle: 'Panel privado para controlar información',
+      description:
+        'Sistema web con usuarios, roles, base de datos y panel administrativo para organizar procesos internos.',
+      idealFor:
+        'Negocios que necesitan controlar citas, productos, clientes o solicitudes.',
+      features: [
+        'Login y autenticación',
+        'Roles de usuario',
+        'Panel administrativo',
+        'CRUD de información',
+        'Base de datos',
+      ],
+      cta: 'Cotizar sistema',
+      highlight: false,
+      isActive: true,
+      sortOrder: 3,
+    },
+    {
+      slug: 'sistema-completo',
+      name: 'Sistema completo',
+      subtitle: 'Web, backend, panel y app móvil',
+      description:
+        'Solución más grande para proyectos que necesitan frontend, backend, base de datos, panel admin y aplicación móvil.',
+      idealFor:
+        'Proyectos que buscan una solución digital completa y escalable.',
+      features: [
+        'Frontend web',
+        'Backend con API',
+        'Panel administrativo',
+        'App móvil opcional',
+        'Base lista para escalar',
+      ],
+      cta: 'Cotizar solución',
+      highlight: false,
+      isActive: true,
+      sortOrder: 4,
+    },
+  ]
+
+  for (const plan of plans) {
+    await prisma.plan.upsert({
+      where: {
+        slug: plan.slug,
+      },
+      update: {
+        name: plan.name,
+        subtitle: plan.subtitle,
+        description: plan.description,
+        idealFor: plan.idealFor,
+        features: plan.features,
+        cta: plan.cta,
+        highlight: plan.highlight,
+        isActive: plan.isActive,
+        sortOrder: plan.sortOrder,
+      },
+      create: plan,
+    })
+  }
+
+  console.log('Paquetes verificados correctamente.')
 }
 
 main()
