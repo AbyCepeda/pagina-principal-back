@@ -1,60 +1,78 @@
-# Página Principal Back
+# Página Principal Front
 
-Backend desarrollado con **NestJS**, **Prisma** y **MySQL/MariaDB** para una landing profesional con panel administrativo, autenticación, gestión de contenido y seguimiento de mensajes de contacto.
+Frontend desarrollado con **React**, **TypeScript**, **Vite**, **TailwindCSS** y **Redux Toolkit** para una landing profesional con panel administrativo, autenticación, gestión de contenido y formulario de contacto.
 
-Este proyecto forma parte de un portafolio profesional y también funciona como base reutilizable para crear páginas web o sistemas administrativos para clientes.
+Este proyecto forma parte de un portafolio profesional y también funciona como base reutilizable para vender páginas web o sistemas administrativos a clientes.
 
 ## Tecnologías utilizadas
 
-* NestJS
+* React
 * TypeScript
-* Prisma ORM
-* MySQL / MariaDB
-* JWT Authentication
-* Passport JWT
-* Bcrypt
-* Class Validator
-* Class Transformer
+* Vite
+* TailwindCSS
+* Redux Toolkit
+* RTK Query
+* React Redux
+* React Router DOM
+* Sonner
 
 ## Funcionalidades principales
 
-* Autenticación con JWT.
-* Registro e inicio de sesión.
-* Roles de usuario: `ADMIN` y `USER`.
-* Panel administrativo protegido.
-* Gestión de usuarios.
-* Gestión de proyectos.
-* Gestión de servicios.
-* Gestión de opciones de contacto.
-* Formulario público de contacto.
-* Seguimiento administrativo de mensajes tipo mini CRM:
+* Landing pública profesional.
+* Diseño responsive para móvil, tablet y desktop.
+* Tema claro y oscuro.
+* Selector de color principal.
+* Secciones públicas:
 
-  * Estado del mensaje.
+  * Inicio.
+  * Servicios.
+  * Soluciones.
+  * Beneficios.
+  * Proyectos.
+  * Tecnologías.
+  * Proceso de trabajo.
+  * Preguntas frecuentes.
+  * Contacto.
+* Formulario de contacto conectado al backend.
+* Si el usuario está logueado, el formulario usa automáticamente el correo de su sesión.
+* Autenticación con JWT.
+* Rutas protegidas.
+* Panel administrativo.
+* Dashboard admin con métricas.
+* Gestión de usuarios.
+* Gestión de servicios.
+* Gestión de proyectos.
+* Gestión de opciones de contacto.
+* Gestión de mensajes tipo mini CRM:
+
+  * Estado.
   * Prioridad.
   * Notas internas.
-  * Fecha de contacto.
-* Dashboard administrativo con métricas.
-* Endpoint público optimizado para landing:
+  * Lectura.
+  * Eliminación.
+* Consumo optimizado de datos públicos mediante un solo endpoint:
 
-  * Servicios.
-  * Proyectos.
-  * Tipos de proyecto.
-  * Opciones de presupuesto.
-* Cache temporal para reducir consultas a la base de datos.
+  * `GET /landing`
+* SEO básico:
+
+  * Meta title.
+  * Meta description.
+  * Open Graph.
+  * Twitter cards.
+  * `robots.txt`.
+  * `sitemap.xml`.
 
 ## Estructura general
 
 ```txt
 src/
-  auth/
-  users/
-  contact/
-  contact-options/
-  projects/
+  admin/
+  components/
+  data/
+  pages/
   services/
-  dashboard/
-  landing/
-  prisma/
+  store/
+  types/
 ```
 
 ## Requisitos
@@ -63,8 +81,7 @@ Antes de ejecutar el proyecto necesitas tener instalado:
 
 * Node.js
 * npm
-* MySQL o MariaDB
-* Docker, opcional pero recomendado para la base de datos
+* Backend del proyecto ejecutándose localmente o desplegado
 
 ## Instalación
 
@@ -79,50 +96,24 @@ Crea un archivo `.env` en la raíz del proyecto tomando como referencia `.env.ex
 Ejemplo:
 
 ```env
-DATABASE_URL="mysql://root:password@127.0.0.1:3308/pagina_principal_db"
-
-DATABASE_HOST=""
-DATABASE_PORT=""
-DATABASE_USER=""
-DATABASE_PASSWORD=""
-DATABASE_NAME=""
-
-JWT_SECRET="change_this_secret"
+VITE_API_URL="http://localhost:4000"
 ```
 
 > Importante: el archivo `.env` no debe subirse al repositorio.
 
-## Base de datos
-
-Ejecutar migraciones de Prisma:
-
-```bash
-npx prisma migrate dev
-```
-
-Generar cliente de Prisma:
-
-```bash
-npx prisma generate
-```
-
-Ejecutar seed de datos iniciales:
-
-```bash
-npm run seed
-```
-
 ## Ejecutar en desarrollo
 
 ```bash
-npm run start:dev
+npm run dev
 ```
 
-Por defecto, el backend se ejecuta en:
+Por defecto, Vite ejecuta el frontend en:
 
 ```txt
-http://localhost:4000
+http://localhost:5173
 ```
+
+o en otro puerto disponible si `5173` ya está ocupado.
 
 ## Compilar proyecto
 
@@ -130,115 +121,88 @@ http://localhost:4000
 npm run build
 ```
 
-## Ejecutar en producción
+## Previsualizar build de producción
 
 ```bash
-npm run start:prod
+npm run preview
+```
+
+## Revisar lint
+
+```bash
+npm run lint
 ```
 
 ## Scripts disponibles
 
 ```bash
-npm run start
-npm run start:dev
-npm run start:debug
-npm run start:prod
+npm run dev
 npm run build
+npm run preview
 npm run lint
-npm run format
-npm run seed
-npm run test
 ```
 
-## Endpoints principales
+## Conexión con backend
 
-### Auth
+El frontend consume una API desarrollada con NestJS, Prisma y MySQL/MariaDB.
+
+Endpoints principales usados por el frontend:
 
 ```txt
-POST /auth/register
 POST /auth/login
+POST /auth/register
 GET /auth/me
-PATCH /auth/change-password
 PATCH /auth/profile
-```
+PATCH /auth/change-password
 
-### Usuarios
+GET /landing
 
-```txt
+POST /contact
+GET /contact
+PATCH /contact/:id
+PATCH /contact/:id/read
+DELETE /contact/:id
+
+GET /dashboard/summary
+
 GET /users
 PATCH /users/:id/role
 PATCH /users/:id/status
 DELETE /users/:id
-```
 
-### Contacto
-
-```txt
-POST /contact
-GET /contact
-GET /contact/unread/count
-GET /contact/:id
-PATCH /contact/:id
-PATCH /contact/:id/read
-DELETE /contact/:id
-```
-
-### Proyectos
-
-```txt
 GET /projects
 POST /projects
-GET /projects/:id
 PATCH /projects/:id
 DELETE /projects/:id
-```
 
-### Servicios
-
-```txt
 GET /services
 POST /services
-GET /services/:id
 PATCH /services/:id
 DELETE /services/:id
-```
 
-### Opciones de contacto
-
-```txt
 GET /contact-options
 POST /contact-options
 PATCH /contact-options/:id
 DELETE /contact-options/:id
 ```
 
-### Dashboard
-
-```txt
-GET /dashboard/summary
-```
-
-### Landing pública
-
-```txt
-GET /landing
-```
-
-Este endpoint devuelve en una sola petición los datos públicos necesarios para cargar la landing.
-
 ## Objetivo del proyecto
 
-El objetivo de este backend es servir como base para una página profesional con funcionalidades reales de negocio:
+El objetivo de este frontend es presentar una página profesional moderna y funcional que sirva como portafolio personal y como base para futuros proyectos comerciales.
 
-* Captura de prospectos.
-* Administración de servicios.
-* Administración de proyectos.
-* Gestión de usuarios.
-* Seguimiento de mensajes.
-* Métricas administrativas.
-* Optimización de consultas públicas.
+El proyecto demuestra habilidades en:
 
-Esto permite que el proyecto funcione tanto como portafolio profesional como plantilla inicial para futuros sistemas o páginas web para clientes.
+* Desarrollo frontend moderno.
+* Diseño responsive.
+* Consumo de APIs.
+* Manejo de estado global.
+* Autenticación.
+* Rutas protegidas.
+* Paneles administrativos.
+* Formularios conectados a backend.
+* Gestión de contenido dinámico.
+* Optimización de peticiones públicas.
+* Uso de temas visuales personalizables.
 
 ## Estado del proyecto
 
