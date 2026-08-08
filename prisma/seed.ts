@@ -1,20 +1,16 @@
+import 'dotenv/config'
 import { ContactOptionType, PrismaClient, Role } from '@prisma/client'
-import { PrismaMariaDb } from '@prisma/adapter-mariadb'
+import { PrismaPg } from '@prisma/adapter-pg'
 import * as bcrypt from 'bcrypt'
 
 /**
- * Adapter de Prisma para conectarse a MySQL/MariaDB.
+ * Adapter de Prisma para conectarse a PostgreSQL.
  *
  * Como usamos Prisma 7, PrismaClient necesita recibir un adapter.
- * Por eso NO usamos new PrismaClient() vacío.
+ * En este caso usamos PrismaPg porque Neon trabaja con PostgreSQL.
  */
-const adapter = new PrismaMariaDb({
-  host: process.env.DATABASE_HOST ?? '127.0.0.1',
-  port: Number(process.env.DATABASE_PORT ?? 3308),
-  user: process.env.DATABASE_USER ?? 'root',
-  password: process.env.DATABASE_PASSWORD ?? 'root',
-  database: process.env.DATABASE_NAME ?? 'pagina_principal_db',
-  allowPublicKeyRetrieval: true,
+const adapter = new PrismaPg({
+  connectionString: process.env.DATABASE_URL,
 })
 
 const prisma = new PrismaClient({
