@@ -61,9 +61,10 @@ export class UsersService {
   }
 
   /**
-   * Crea un usuario nuevo.
+   * Crea un usuario desde el panel ADMIN.
    *
    * Encripta la contraseña antes de guardar.
+   * Estos usuarios sí nacen activos porque fueron creados por un administrador.
    */
   async create(data: {
     name: string;
@@ -110,6 +111,60 @@ export class UsersService {
       console.error('Error al crear usuario:', error);
 
       throw new InternalServerErrorException('No se pudo crear el usuario.');
+    }
+  }
+
+  /**
+   * Crea una cuenta desde el registro público.
+   *
+   * Siempre crea usuarios con rol USER y estado inactivo.
+   * Esto evita que una persona se registre y entre al sistema
+   * sin revisión previa del administrador.
+   */
+  async createPublicRegistration(data: {
+    name: string;
+    email: string;
+    password: string;
+  }) {
+    try {
+      const email = data.email.trim().toLowerCase();
+
+      const existingUser = await this.findByEmail(email);
+
+      if (existingUser) {
+        throw new ConflictException('El correo ya está registrado.');
+      }
+
+      const hashedPassword = await bcrypt.hash(data.password, 10);
+
+      const user = await this.prisma.user.create({
+        data: {
+          name: data.name.trim(),
+          email,
+          password: hashedPassword,
+          role: Role.USER,
+          isActive: false,
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          isActive: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+
+      return user;
+    } catch (error) {
+      if (error instanceof ConflictException) {
+        throw error;
+      }
+
+      console.error('Error al registrar usuario público:', error);
+
+      throw new InternalServerErrorException('No se pudo registrar el usuario.');
     }
   }
 

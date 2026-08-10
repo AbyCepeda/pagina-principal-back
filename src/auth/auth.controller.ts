@@ -1,28 +1,23 @@
 import { Body, Controller, Get, Patch, Post, UseGuards } from '@nestjs/common';
-import { Role } from '@prisma/client';
 import { AuthService } from './auth.service';
 import { CurrentUser } from './decorators/current-user.decorator';
 import type { CurrentUser as CurrentUserType } from './decorators/current-user.decorator';
-import { Roles } from './decorators/roles.decorator';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
-import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import { RolesGuard } from './guards/roles.guard';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   /**
-   * Crear usuarios.
+   * Registro público de usuarios.
    *
-   * Esta ruta está protegida para que solo un ADMIN
-   * pueda crear nuevos usuarios.
+   * Crea una cuenta USER pendiente de activación.
+   * El usuario no podrá iniciar sesión hasta que un ADMIN lo active.
    */
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
   @Post('register')
   register(@Body() registerDto: RegisterDto) {
     return this.authService.register(registerDto);

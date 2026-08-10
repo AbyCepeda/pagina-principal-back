@@ -1,9 +1,10 @@
-import { IsEmail, IsEnum, IsNotEmpty, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
-
-export enum RegisterRole {
-  ADMIN = 'ADMIN',
-  USER = 'USER',
-}
+import {
+  IsEmail,
+  IsNotEmpty,
+  IsString,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 
 export class RegisterDto {
   @IsString({ message: 'El nombre debe ser texto.' })
@@ -14,14 +15,12 @@ export class RegisterDto {
 
   @IsEmail({}, { message: 'El correo no tiene un formato válido.' })
   @IsNotEmpty({ message: 'El correo es obligatorio.' })
+  @MaxLength(120, { message: 'El correo no debe superar los 120 caracteres.' })
   email!: string;
 
   @IsString({ message: 'La contraseña debe ser texto.' })
   @IsNotEmpty({ message: 'La contraseña es obligatoria.' })
   @MinLength(6, { message: 'La contraseña debe tener al menos 6 caracteres.' })
+  @MaxLength(72, { message: 'La contraseña no debe superar los 72 caracteres.' })
   password!: string;
-
-  @IsOptional()
-  @IsEnum(RegisterRole, { message: 'El rol debe ser ADMIN o USER.' })
-  role?: RegisterRole;
 }

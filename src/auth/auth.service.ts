@@ -19,16 +19,18 @@ export class AuthService {
   ) {}
 
   /**
-   * Registra un usuario nuevo.
+   * Registro público de usuarios.
    *
-   * La contraseña se encripta dentro de UsersService.
+   * Crea una cuenta USER pendiente de activación.
+   * El usuario no podrá iniciar sesión hasta que un ADMIN active su cuenta.
    */
   async register(registerDto: RegisterDto) {
-    const user = await this.usersService.create(registerDto);
+    const user = await this.usersService.createPublicRegistration(registerDto);
 
     return {
       success: true,
-      message: 'Usuario registrado correctamente',
+      message:
+        'Cuenta creada correctamente. Un administrador debe activarla antes de que puedas iniciar sesión.',
       data: user,
     };
   }
