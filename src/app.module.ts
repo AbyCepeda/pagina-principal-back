@@ -12,6 +12,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
 import { ContactOptionsModule } from './contact-options/contact-options.module';
 import { LandingModule } from './landing/landing.module';
 import { PlansModule } from './plans/plans.module';
+import { LeadAgentModule } from './lead-agent/lead-agent.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { PlansModule } from './plans/plans.module';
     ContactOptionsModule,
     LandingModule,
     PlansModule,
+    LeadAgentModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ContactStatus, Prisma } from '@prisma/client';
+import { LeadAgentService } from '../lead-agent/lead-agent.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateContactDto } from './dto/create-contact.dto';
 import { GetContactMessagesQueryDto } from './dto/get-contact-messages-query.dto';
@@ -12,20 +13,51 @@ import { UpdateContactMessageDto } from './dto/update-contact-message.dto';
 
 @Injectable()
 export class ContactService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly leadAgentService: LeadAgentService,
+  ) {}
 
   /**
    * Guarda un mensaje enviado desde la landing pública.
+   *
+   * Antes de guardar, el mini agente analiza el lead y genera:
+   * - prioridad automática
+   * - estado inicial sugerido
+   * - score
+   * - etiquetas
+   * - resumen
+   * - acción recomendada
+   * - respuesta sugerida
    */
   async create(createContactDto: CreateContactDto) {
     try {
+      const normalizedContact = {
+        name: createContactDto.name.trim(),
+        email: createContactDto.email.trim().toLowerCase(),
+        projectType: createContactDto.projectType.trim(),
+        budget: createContactDto.budget.trim(),
+        message: createContactDto.message.trim(),
+      };
+
+      const analysis = this.leadAgentService.analyzeLead(normalizedContact);
+
       const contactMessage = await this.prisma.contactMessage.create({
         data: {
-          name: createContactDto.name.trim(),
-          email: createContactDto.email.trim().toLowerCase(),
-          projectType: createContactDto.projectType.trim(),
-          budget: createContactDto.budget.trim(),
-          message: createContactDto.message.trim(),
+          name: normalizedContact.name,
+          email: normalizedContact.email,
+          projectType: normalizedContact.projectType,
+          budget: normalizedContact.budget,
+          message: normalizedContact.message,
+
+          status: analysis.status,
+          priority: analysis.priority,
+
+          agentSummary: analysis.summary,
+          agentSuggestedAction: analysis.suggestedAction,
+          agentSuggestedReply: analysis.suggestedReply,
+          agentScore: analysis.score,
+          agentTags: analysis.tags,
         },
       });
 
@@ -103,6 +135,16 @@ export class ContactService {
                 },
                 {
                   adminNotes: {
+                    contains: search,
+                  },
+                },
+                {
+                  agentSummary: {
+                    contains: search,
+                  },
+                },
+                {
+                  agentSuggestedAction: {
                     contains: search,
                   },
                 },
@@ -263,7 +305,8 @@ export class ContactService {
            * Si el admin empieza a revisar/cerrar el mensaje,
            * también lo consideramos leído.
            */
-          ...(status === ContactStatus.REVIEWING || status === ContactStatus.CLOSED
+          ...(status === ContactStatus.REVIEWING ||
+          status === ContactStatus.CLOSED
             ? { isRead: true }
             : {}),
         },
