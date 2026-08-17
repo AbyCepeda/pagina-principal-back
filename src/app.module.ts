@@ -13,6 +13,7 @@ import { ContactOptionsModule } from './contact-options/contact-options.module';
 import { LandingModule } from './landing/landing.module';
 import { PlansModule } from './plans/plans.module';
 import { LeadAgentModule } from './lead-agent/lead-agent.module';
+import { LandingSectionsModule } from './landing-sections/landing-sections.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { LeadAgentModule } from './lead-agent/lead-agent.module';
     LandingModule,
     PlansModule,
     LeadAgentModule,
+    LandingSectionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

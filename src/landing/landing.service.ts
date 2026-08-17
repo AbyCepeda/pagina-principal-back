@@ -1,27 +1,14 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
-import { ContactOptionType } from '@prisma/client';
-import { PrismaService } from '../prisma/prisma.service';
-
-type LandingData = {
-  services: Awaited<ReturnType<LandingService['getPublicServices']>>;
-  projects: Awaited<ReturnType<LandingService['getPublicProjects']>>;
-  projectTypes: Awaited<ReturnType<LandingService['getProjectTypeOptions']>>;
-  budgets: Awaited<ReturnType<LandingService['getBudgetOptions']>>;
-  plans: Awaited<ReturnType<LandingService['getPublicPlans']>>;
-};
+import { Injectable, InternalServerErrorException } from '@nestjs/common'
+import { ContactOptionType } from '@prisma/client'
+import { LandingSectionsService } from '../landing-sections/landing-sections.service'
+import { PrismaService } from '../prisma/prisma.service'
 
 @Injectable()
 export class LandingService {
-  private cachedData: LandingData | null = null;
-  private cachedAt = 0;
-
-  /**
-   * Tiempo de vida del cache en milisegundos.
-   * 5 minutos reduce consultas a la BD sin dejar datos viejos demasiado tiempo.
-   */
-  private readonly cacheTtl = 1000 * 60 * 5;
-
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly landingSectionsService: LandingSectionsService,
+  ) {}
 
   /**
    * Devuelve toda la información pública que necesita la landing
@@ -29,104 +16,34 @@ export class LandingService {
    */
   async findPublicLandingData() {
     try {
-      const now = Date.now();
-      const isCacheValid =
-        this.cachedData !== null && now - this.cachedAt < this.cacheTtl;
-
-      if (isCacheValid) {
-        return {
-          success: true,
-          message: 'Landing obtenida desde cache',
-          data: this.cachedData,
-        };
-      }
-
-      const [services, projects, projectTypes, budgets, plans] =
-        await this.prisma.$transaction([
-          this.prisma.service.findMany({
-            where: {
-              isActive: true,
-            },
-            orderBy: {
-              createdAt: 'desc',
-            },
-          }),
-
-          this.prisma.project.findMany({
-            where: {
-              isActive: true,
-            },
-            orderBy: {
-              createdAt: 'desc',
-            },
-          }),
-
-          this.prisma.contactOption.findMany({
-            where: {
-              isActive: true,
-              type: ContactOptionType.PROJECT_TYPE,
-            },
-            orderBy: [
-              {
-                sortOrder: 'asc',
-              },
-              {
-                label: 'asc',
-              },
-            ],
-          }),
-
-          this.prisma.contactOption.findMany({
-            where: {
-              isActive: true,
-              type: ContactOptionType.BUDGET,
-            },
-            orderBy: [
-              {
-                sortOrder: 'asc',
-              },
-              {
-                label: 'asc',
-              },
-            ],
-          }),
-
-          this.prisma.plan.findMany({
-            where: {
-              isActive: true,
-            },
-            orderBy: [
-              {
-                sortOrder: 'asc',
-              },
-              {
-                createdAt: 'desc',
-              },
-            ],
-          }),
-        ]);
-
-      this.cachedData = {
-        services,
-        projects,
-        projectTypes,
-        budgets,
-        plans,
-      };
-
-      this.cachedAt = now;
+      const [services, projects, projectTypes, budgets, plans, sections] =
+        await Promise.all([
+          this.getPublicServices(),
+          this.getPublicProjects(),
+          this.getProjectTypeOptions(),
+          this.getBudgetOptions(),
+          this.getPublicPlans(),
+          this.landingSectionsService.findPublicSections(),
+        ])
 
       return {
         success: true,
         message: 'Landing obtenida correctamente',
-        data: this.cachedData,
-      };
+        data: {
+          services,
+          projects,
+          projectTypes,
+          budgets,
+          plans,
+          sections,
+        },
+      }
     } catch (error) {
-      console.error('Error al obtener datos públicos de landing:', error);
+      console.error('Error al obtener datos públicos de landing:', error)
 
       throw new InternalServerErrorException(
         'No se pudieron obtener los datos públicos de la landing.',
-      );
+      )
     }
   }
 
@@ -138,7 +55,7 @@ export class LandingService {
       orderBy: {
         createdAt: 'desc',
       },
-    });
+    })
   }
 
   private async getPublicProjects() {
@@ -149,7 +66,7 @@ export class LandingService {
       orderBy: {
         createdAt: 'desc',
       },
-    });
+    })
   }
 
   private async getProjectTypeOptions() {
@@ -166,7 +83,7 @@ export class LandingService {
           label: 'asc',
         },
       ],
-    });
+    })
   }
 
   private async getBudgetOptions() {
@@ -183,7 +100,7 @@ export class LandingService {
           label: 'asc',
         },
       ],
-    });
+    })
   }
 
   private async getPublicPlans() {
@@ -199,6 +116,6 @@ export class LandingService {
           createdAt: 'desc',
         },
       ],
-    });
+    })
   }
 }

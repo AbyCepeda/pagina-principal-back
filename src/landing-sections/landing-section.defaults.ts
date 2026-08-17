@@ -1,0 +1,58 @@
+export const defaultLandingSections = [
+  {
+    key: 'inicio',
+    label: 'Inicio',
+    href: '#inicio',
+    sortOrder: 1,
+    isVisible: true,
+  },
+  {
+    key: 'servicios',
+    label: 'Servicios',
+    href: '#servicios',
+    sortOrder: 2,
+    isVisible: true,
+  },
+  {
+    key: 'soluciones',
+    label: 'Soluciones',
+    href: '#soluciones',
+    sortOrder: 3,
+    isVisible: true,
+  },
+  {
+    key: 'paquetes',
+    label: 'Paquetes',
+    href: '#paquetes',
+    sortOrder: 4,
+    isVisible: true,
+  },
+  {
+    key: 'proyectos',
+    label: 'Proyectos',
+    href: '#proyectos',
+    sortOrder: 5,
+    isVisible: true,
+  },
+  {
+    key: 'proceso',
+    label: 'Proceso',
+    href: '#proceso',
+    sortOrder: 6,
+    isVisible: true,
+  },
+  {
+    key: 'sobre-mi',
+    label: 'Sobre mí',
+    href: '#sobre-mi',
+    sortOrder: 7,
+    isVisible: true,
+  },
+  {
+    key: 'contacto',
+    label: 'Contacto',
+    href: '#contacto',
+    sortOrder: 8,
+    isVisible: true,
+  },
+] as const
