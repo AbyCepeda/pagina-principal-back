@@ -38,6 +38,17 @@ export class ContactService {
         projectType: createContactDto.projectType.trim(),
         budget: createContactDto.budget.trim(),
         message: createContactDto.message.trim(),
+
+        quotePlanSlug: createContactDto.quotePlanSlug?.trim() || null,
+        quotePlanName: createContactDto.quotePlanName?.trim() || null,
+        quoteMinPrice: createContactDto.quoteMinPrice,
+        quoteMaxPrice: createContactDto.quoteMaxPrice,
+        quoteSuggestedBudget:
+          createContactDto.quoteSuggestedBudget?.trim() || null,
+        quoteComplexity: createContactDto.quoteComplexity?.trim() || null,
+        quoteEstimatedTime: createContactDto.quoteEstimatedTime?.trim() || null,
+        quoteExtras: createContactDto.quoteExtras,
+        quoteSnapshot: createContactDto.quoteSnapshot,
       };
 
       const analysis = this.leadAgentService.analyzeLead(normalizedContact);
@@ -49,6 +60,48 @@ export class ContactService {
           projectType: normalizedContact.projectType,
           budget: normalizedContact.budget,
           message: normalizedContact.message,
+
+          ...(normalizedContact.quotePlanSlug
+            ? { quotePlanSlug: normalizedContact.quotePlanSlug }
+            : {}),
+
+          ...(normalizedContact.quotePlanName
+            ? { quotePlanName: normalizedContact.quotePlanName }
+            : {}),
+
+          ...(typeof normalizedContact.quoteMinPrice === 'number'
+            ? { quoteMinPrice: normalizedContact.quoteMinPrice }
+            : {}),
+
+          ...(typeof normalizedContact.quoteMaxPrice === 'number'
+            ? { quoteMaxPrice: normalizedContact.quoteMaxPrice }
+            : {}),
+
+          ...(normalizedContact.quoteSuggestedBudget
+            ? { quoteSuggestedBudget: normalizedContact.quoteSuggestedBudget }
+            : {}),
+
+          ...(normalizedContact.quoteComplexity
+            ? { quoteComplexity: normalizedContact.quoteComplexity }
+            : {}),
+
+          ...(normalizedContact.quoteEstimatedTime
+            ? { quoteEstimatedTime: normalizedContact.quoteEstimatedTime }
+            : {}),
+
+          ...(Array.isArray(normalizedContact.quoteExtras)
+            ? {
+                quoteExtras:
+                  normalizedContact.quoteExtras as Prisma.InputJsonValue,
+              }
+            : {}),
+
+          ...(normalizedContact.quoteSnapshot
+            ? {
+                quoteSnapshot:
+                  normalizedContact.quoteSnapshot as Prisma.InputJsonValue,
+              }
+            : {}),
 
           status: analysis.status,
           priority: analysis.priority,
@@ -145,6 +198,26 @@ export class ContactService {
                 },
                 {
                   agentSuggestedAction: {
+                    contains: search,
+                  },
+                },
+                {
+                  quotePlanName: {
+                    contains: search,
+                  },
+                },
+                {
+                  quoteSuggestedBudget: {
+                    contains: search,
+                  },
+                },
+                {
+                  quoteComplexity: {
+                    contains: search,
+                  },
+                },
+                {
+                  quoteEstimatedTime: {
                     contains: search,
                   },
                 },
