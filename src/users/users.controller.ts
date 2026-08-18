@@ -5,6 +5,7 @@ import {
   Get,
   Param,
   Patch,
+  Post,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -13,6 +14,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { CreateUserDto } from './dto/create-user.dto';
 import { GetUsersQueryDto } from './dto/get-users-query.dto';
 import { UpdateUserRoleDto } from './dto/update-user-role.dto';
 import { UpdateUserStatusDto } from './dto/update-user-status.dto';
@@ -29,6 +31,22 @@ type CurrentUserPayload = {
 @Roles(Role.ADMIN)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
+
+  /**
+   * Crea usuarios desde el panel ADMIN.
+   *
+   * Esta ruta sí permite elegir USER o ADMIN porque está protegida.
+   */
+  @Post()
+  async create(@Body() createUserDto: CreateUserDto) {
+    const user = await this.usersService.create(createUserDto);
+
+    return {
+      success: true,
+      message: 'Usuario creado correctamente.',
+      data: user,
+    };
+  }
 
   /**
    * Lista usuarios del sistema con paginación, búsqueda y filtros.
