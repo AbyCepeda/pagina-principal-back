@@ -20,4 +20,11 @@ export class UpdateContactMessageDto {
     message: 'adminNotes no debe superar los 2000 caracteres.',
   })
   adminNotes?: string;
+
+  @IsOptional()
+  @IsString({ message: 'adminPublicReply debe ser texto.' })
+  @MaxLength(2000, {
+    message: 'adminPublicReply no debe superar los 2000 caracteres.',
+  })
+  adminPublicReply?: string;
 }

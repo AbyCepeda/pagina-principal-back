@@ -4,7 +4,7 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { ContactStatus, Prisma } from '@prisma/client';
+import { ContactPriority, ContactStatus, Prisma } from '@prisma/client';
 import { LeadAgentService } from '../lead-agent/lead-agent.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateContactDto } from './dto/create-contact.dto';
@@ -19,16 +19,11 @@ export class ContactService {
   ) {}
 
   /**
-   * Guarda un mensaje enviado desde la landing pública.
+   * Crea una solicitud de contacto desde la landing.
    *
-   * Antes de guardar, el mini agente analiza el lead y genera:
-   * - prioridad automática
-   * - estado inicial sugerido
-   * - score
-   * - etiquetas
-   * - resumen
-   * - acción recomendada
-   * - respuesta sugerida
+   * Antes de guardar valida cuántas solicitudes activas tiene el correo.
+   * Si el usuario existe, usa su límite personalizado.
+   * Si no existe, aplica límite base de 3.
    */
   async create(createContactDto: CreateContactDto) {
     try {
@@ -38,70 +33,15 @@ export class ContactService {
         projectType: createContactDto.projectType.trim(),
         budget: createContactDto.budget.trim(),
         message: createContactDto.message.trim(),
-
-        quotePlanSlug: createContactDto.quotePlanSlug?.trim() || null,
-        quotePlanName: createContactDto.quotePlanName?.trim() || null,
-        quoteMinPrice: createContactDto.quoteMinPrice,
-        quoteMaxPrice: createContactDto.quoteMaxPrice,
-        quoteSuggestedBudget:
-          createContactDto.quoteSuggestedBudget?.trim() || null,
-        quoteComplexity: createContactDto.quoteComplexity?.trim() || null,
-        quoteEstimatedTime: createContactDto.quoteEstimatedTime?.trim() || null,
-        quoteExtras: createContactDto.quoteExtras,
-        quoteSnapshot: createContactDto.quoteSnapshot,
       };
+
+      await this.validateActiveRequestLimit(normalizedContact.email);
 
       const analysis = this.leadAgentService.analyzeLead(normalizedContact);
 
       const contactMessage = await this.prisma.contactMessage.create({
         data: {
-          name: normalizedContact.name,
-          email: normalizedContact.email,
-          projectType: normalizedContact.projectType,
-          budget: normalizedContact.budget,
-          message: normalizedContact.message,
-
-          ...(normalizedContact.quotePlanSlug
-            ? { quotePlanSlug: normalizedContact.quotePlanSlug }
-            : {}),
-
-          ...(normalizedContact.quotePlanName
-            ? { quotePlanName: normalizedContact.quotePlanName }
-            : {}),
-
-          ...(typeof normalizedContact.quoteMinPrice === 'number'
-            ? { quoteMinPrice: normalizedContact.quoteMinPrice }
-            : {}),
-
-          ...(typeof normalizedContact.quoteMaxPrice === 'number'
-            ? { quoteMaxPrice: normalizedContact.quoteMaxPrice }
-            : {}),
-
-          ...(normalizedContact.quoteSuggestedBudget
-            ? { quoteSuggestedBudget: normalizedContact.quoteSuggestedBudget }
-            : {}),
-
-          ...(normalizedContact.quoteComplexity
-            ? { quoteComplexity: normalizedContact.quoteComplexity }
-            : {}),
-
-          ...(normalizedContact.quoteEstimatedTime
-            ? { quoteEstimatedTime: normalizedContact.quoteEstimatedTime }
-            : {}),
-
-          ...(Array.isArray(normalizedContact.quoteExtras)
-            ? {
-                quoteExtras:
-                  normalizedContact.quoteExtras as Prisma.InputJsonValue,
-              }
-            : {}),
-
-          ...(normalizedContact.quoteSnapshot
-            ? {
-                quoteSnapshot:
-                  normalizedContact.quoteSnapshot as Prisma.InputJsonValue,
-              }
-            : {}),
+          ...normalizedContact,
 
           status: analysis.status,
           priority: analysis.priority,
@@ -111,15 +51,67 @@ export class ContactService {
           agentSuggestedReply: analysis.suggestedReply,
           agentScore: analysis.score,
           agentTags: analysis.tags,
+
+          ...(typeof createContactDto.quotePlanSlug === 'string'
+            ? { quotePlanSlug: createContactDto.quotePlanSlug.trim() }
+            : {}),
+
+          ...(typeof createContactDto.quotePlanName === 'string'
+            ? { quotePlanName: createContactDto.quotePlanName.trim() }
+            : {}),
+
+          ...(typeof createContactDto.quoteMinPrice === 'number'
+            ? { quoteMinPrice: createContactDto.quoteMinPrice }
+            : {}),
+
+          ...(typeof createContactDto.quoteMaxPrice === 'number'
+            ? { quoteMaxPrice: createContactDto.quoteMaxPrice }
+            : {}),
+
+          ...(typeof createContactDto.quoteSuggestedBudget === 'string'
+            ? {
+                quoteSuggestedBudget:
+                  createContactDto.quoteSuggestedBudget.trim(),
+              }
+            : {}),
+
+          ...(typeof createContactDto.quoteComplexity === 'string'
+            ? { quoteComplexity: createContactDto.quoteComplexity.trim() }
+            : {}),
+
+          ...(typeof createContactDto.quoteEstimatedTime === 'string'
+            ? {
+                quoteEstimatedTime:
+                  createContactDto.quoteEstimatedTime.trim(),
+              }
+            : {}),
+
+          ...(Array.isArray(createContactDto.quoteExtras)
+            ? {
+                quoteExtras:
+                  createContactDto.quoteExtras as Prisma.InputJsonValue,
+              }
+            : {}),
+
+          ...(createContactDto.quoteSnapshot
+            ? {
+                quoteSnapshot:
+                  createContactDto.quoteSnapshot as Prisma.InputJsonValue,
+              }
+            : {}),
         },
       });
 
       return {
         success: true,
-        message: 'Mensaje guardado correctamente',
+        message: 'Mensaje guardado correctamente.',
         data: contactMessage,
       };
     } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+
       console.error('Error al guardar mensaje de contacto:', error);
 
       throw new InternalServerErrorException(
@@ -129,7 +121,51 @@ export class ContactService {
   }
 
   /**
-   * Lista mensajes de contacto con búsqueda, filtro y paginación.
+   * Valida el límite de solicitudes activas por correo.
+   *
+   * Activas:
+   * - NEW
+   * - REVIEWING
+   * - CONTACTED
+   *
+   * CLOSED no cuenta contra el límite.
+   */
+  private async validateActiveRequestLimit(email: string) {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    const user = await this.prisma.user.findUnique({
+      where: {
+        email: normalizedEmail,
+      },
+      select: {
+        projectRequestLimit: true,
+      },
+    });
+
+    const requestLimit = user?.projectRequestLimit ?? 3;
+
+    const activeRequestsCount = await this.prisma.contactMessage.count({
+      where: {
+        email: normalizedEmail,
+        status: {
+          in: [
+            ContactStatus.NEW,
+            ContactStatus.REVIEWING,
+            ContactStatus.CONTACTED,
+          ],
+        },
+      },
+    });
+
+    if (activeRequestsCount >= requestLimit) {
+      throw new BadRequestException(
+        `Este correo ya tiene ${activeRequestsCount} solicitudes activas. El límite actual es de ${requestLimit}. Espera a que una solicitud sea cerrada o contacta al administrador.`,
+      );
+    }
+  }
+
+  /**
+   * Lista mensajes para ADMIN con búsqueda, filtros y paginación.
    */
   async findAll(query: GetContactMessagesQueryDto) {
     try {
@@ -140,6 +176,61 @@ export class ContactService {
       const search = query.search?.trim();
 
       const where: Prisma.ContactMessageWhereInput = {
+        ...(search
+          ? {
+              OR: [
+                {
+                  name: {
+                    contains: search,
+                    mode: 'insensitive',
+                  },
+                },
+                {
+                  email: {
+                    contains: search,
+                    mode: 'insensitive',
+                  },
+                },
+                {
+                  projectType: {
+                    contains: search,
+                    mode: 'insensitive',
+                  },
+                },
+                {
+                  budget: {
+                    contains: search,
+                    mode: 'insensitive',
+                  },
+                },
+                {
+                  message: {
+                    contains: search,
+                    mode: 'insensitive',
+                  },
+                },
+                {
+                  adminNotes: {
+                    contains: search,
+                    mode: 'insensitive',
+                  },
+                },
+                {
+                  adminPublicReply: {
+                    contains: search,
+                    mode: 'insensitive',
+                  },
+                },
+                {
+                  quotePlanName: {
+                    contains: search,
+                    mode: 'insensitive',
+                  },
+                },
+              ],
+            }
+          : {}),
+
         ...(typeof query.isRead === 'boolean'
           ? {
               isRead: query.isRead,
@@ -157,76 +248,9 @@ export class ContactService {
               priority: query.priority,
             }
           : {}),
-
-        ...(search
-          ? {
-              OR: [
-                {
-                  name: {
-                    contains: search,
-                  },
-                },
-                {
-                  email: {
-                    contains: search,
-                  },
-                },
-                {
-                  projectType: {
-                    contains: search,
-                  },
-                },
-                {
-                  budget: {
-                    contains: search,
-                  },
-                },
-                {
-                  message: {
-                    contains: search,
-                  },
-                },
-                {
-                  adminNotes: {
-                    contains: search,
-                  },
-                },
-                {
-                  agentSummary: {
-                    contains: search,
-                  },
-                },
-                {
-                  agentSuggestedAction: {
-                    contains: search,
-                  },
-                },
-                {
-                  quotePlanName: {
-                    contains: search,
-                  },
-                },
-                {
-                  quoteSuggestedBudget: {
-                    contains: search,
-                  },
-                },
-                {
-                  quoteComplexity: {
-                    contains: search,
-                  },
-                },
-                {
-                  quoteEstimatedTime: {
-                    contains: search,
-                  },
-                },
-              ],
-            }
-          : {}),
       };
 
-      const [contactMessages, total] = await this.prisma.$transaction([
+      const [messages, total] = await this.prisma.$transaction([
         this.prisma.contactMessage.findMany({
           where,
           orderBy: {
@@ -245,8 +269,8 @@ export class ContactService {
 
       return {
         success: true,
-        message: 'Mensajes obtenidos correctamente',
-        data: contactMessages,
+        message: 'Mensajes obtenidos correctamente.',
+        data: messages,
         meta: {
           page,
           limit,
@@ -266,61 +290,128 @@ export class ContactService {
   }
 
   /**
-   * Cuenta los mensajes no leídos.
+   * Permite que el usuario autenticado vea sus propias solicitudes.
+   *
+   * De momento se relacionan por correo.
    */
-  async countUnread() {
+  async findMyMessages(userId: number) {
     try {
-      const count = await this.prisma.contactMessage.count({
+      const user = await this.prisma.user.findUnique({
         where: {
-          isRead: false,
+          id: userId,
+        },
+        select: {
+          email: true,
+          projectRequestLimit: true,
         },
       });
 
+      if (!user) {
+        throw new NotFoundException('Usuario no encontrado.');
+      }
+
+      const normalizedEmail = user.email.trim().toLowerCase();
+
+      const [messages, activeRequestsCount] = await this.prisma.$transaction([
+        this.prisma.contactMessage.findMany({
+          where: {
+            email: normalizedEmail,
+          },
+          orderBy: {
+            createdAt: 'desc',
+          },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            projectType: true,
+            budget: true,
+            message: true,
+            isRead: true,
+            status: true,
+            priority: true,
+            contactedAt: true,
+
+            adminPublicReply: true,
+            adminReplyAt: true,
+
+            quotePlanSlug: true,
+            quotePlanName: true,
+            quoteMinPrice: true,
+            quoteMaxPrice: true,
+            quoteSuggestedBudget: true,
+            quoteComplexity: true,
+            quoteEstimatedTime: true,
+            quoteExtras: true,
+            quoteSnapshot: true,
+
+            createdAt: true,
+            updatedAt: true,
+          },
+        }),
+
+        this.prisma.contactMessage.count({
+          where: {
+            email: normalizedEmail,
+            status: {
+              in: [
+                ContactStatus.NEW,
+                ContactStatus.REVIEWING,
+                ContactStatus.CONTACTED,
+              ],
+            },
+          },
+        }),
+      ]);
+
       return {
         success: true,
-        message: 'Total de mensajes no leídos obtenido correctamente',
-        data: {
-          count,
+        message: 'Solicitudes obtenidas correctamente.',
+        data: messages,
+        meta: {
+          activeRequestsCount,
+          requestLimit: user.projectRequestLimit,
+          remainingRequests: Math.max(
+            user.projectRequestLimit - activeRequestsCount,
+            0,
+          ),
         },
       };
     } catch (error) {
-      console.error('Error al contar mensajes no leídos:', error);
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+
+      console.error('Error al obtener solicitudes del usuario:', error);
 
       throw new InternalServerErrorException(
-        'No se pudo obtener el total de mensajes no leídos.',
+        'No se pudieron obtener tus solicitudes.',
       );
     }
   }
 
   /**
-   * Busca un mensaje por id.
+   * Obtiene un mensaje por ID para ADMIN.
    */
   async findOne(id: number) {
     try {
-      if (!Number.isInteger(id)) {
-        throw new BadRequestException('Id inválido.');
-      }
-
-      const contactMessage = await this.prisma.contactMessage.findUnique({
+      const message = await this.prisma.contactMessage.findUnique({
         where: {
           id,
         },
       });
 
-      if (!contactMessage) {
-        throw new NotFoundException('Mensaje de contacto no encontrado.');
+      if (!message) {
+        throw new NotFoundException('Mensaje no encontrado.');
       }
 
       return {
         success: true,
-        message: 'Mensaje obtenido correctamente',
-        data: contactMessage,
+        message: 'Mensaje obtenido correctamente.',
+        data: message,
       };
     } catch (error) {
-      if (
-        error instanceof NotFoundException ||
-        error instanceof BadRequestException
-      ) {
+      if (error instanceof NotFoundException) {
         throw error;
       }
 
@@ -333,68 +424,75 @@ export class ContactService {
   }
 
   /**
-   * Actualiza el seguimiento administrativo del mensaje.
+   * Actualiza seguimiento del mensaje para ADMIN.
+   *
+   * - status
+   * - priority
+   * - adminNotes: solo admin
+   * - adminPublicReply: visible para usuario
    */
   async update(id: number, updateContactMessageDto: UpdateContactMessageDto) {
     try {
-      if (!Number.isInteger(id)) {
-        throw new BadRequestException('Id inválido.');
-      }
-
-      const contactMessage = await this.prisma.contactMessage.findUnique({
+      const message = await this.prisma.contactMessage.findUnique({
         where: {
           id,
         },
       });
 
-      if (!contactMessage) {
-        throw new NotFoundException('Mensaje de contacto no encontrado.');
+      if (!message) {
+        throw new NotFoundException('Mensaje no encontrado.');
       }
 
-      const status = updateContactMessageDto.status;
+      const hasPublicReply =
+        typeof updateContactMessageDto.adminPublicReply === 'string';
 
-      const updatedContactMessage = await this.prisma.contactMessage.update({
+      const trimmedPublicReply = hasPublicReply
+        ? updateContactMessageDto.adminPublicReply?.trim()
+        : undefined;
+
+      const updatedMessage = await this.prisma.contactMessage.update({
         where: {
           id,
         },
         data: {
-          ...(status ? { status } : {}),
+          ...(updateContactMessageDto.status
+            ? {
+                status: updateContactMessageDto.status,
+                contactedAt:
+                  updateContactMessageDto.status === ContactStatus.CONTACTED
+                    ? new Date()
+                    : message.contactedAt,
+              }
+            : {}),
+
           ...(updateContactMessageDto.priority
-            ? { priority: updateContactMessageDto.priority }
+            ? {
+                priority: updateContactMessageDto.priority,
+              }
             : {}),
+
           ...(typeof updateContactMessageDto.adminNotes === 'string'
-            ? { adminNotes: updateContactMessageDto.adminNotes.trim() || null }
+            ? {
+                adminNotes: updateContactMessageDto.adminNotes.trim() || null,
+              }
             : {}),
 
-          /**
-           * Si el admin cambia el mensaje a CONTACTED,
-           * guardamos la fecha de contacto automáticamente.
-           */
-          ...(status === ContactStatus.CONTACTED && !contactMessage.contactedAt
-            ? { contactedAt: new Date(), isRead: true }
-            : {}),
-
-          /**
-           * Si el admin empieza a revisar/cerrar el mensaje,
-           * también lo consideramos leído.
-           */
-          ...(status === ContactStatus.REVIEWING ||
-          status === ContactStatus.CLOSED
-            ? { isRead: true }
+          ...(hasPublicReply
+            ? {
+                adminPublicReply: trimmedPublicReply || null,
+                adminReplyAt: trimmedPublicReply ? new Date() : null,
+              }
             : {}),
         },
       });
 
       return {
         success: true,
-        message: 'Mensaje actualizado correctamente',
-        data: updatedContactMessage,
+        message: 'Mensaje actualizado correctamente.',
+        data: updatedMessage,
       };
     } catch (error) {
-      if (
-        error instanceof NotFoundException ||
-        error instanceof BadRequestException
-      ) {
+      if (error instanceof NotFoundException) {
         throw error;
       }
 
@@ -411,21 +509,17 @@ export class ContactService {
    */
   async markAsRead(id: number) {
     try {
-      if (!Number.isInteger(id)) {
-        throw new BadRequestException('Id inválido.');
-      }
-
-      const contactMessage = await this.prisma.contactMessage.findUnique({
+      const message = await this.prisma.contactMessage.findUnique({
         where: {
           id,
         },
       });
 
-      if (!contactMessage) {
-        throw new NotFoundException('Mensaje de contacto no encontrado.');
+      if (!message) {
+        throw new NotFoundException('Mensaje no encontrado.');
       }
 
-      const updatedContactMessage = await this.prisma.contactMessage.update({
+      const updatedMessage = await this.prisma.contactMessage.update({
         where: {
           id,
         },
@@ -436,14 +530,11 @@ export class ContactService {
 
       return {
         success: true,
-        message: 'Mensaje marcado como leído correctamente',
-        data: updatedContactMessage,
+        message: 'Mensaje marcado como leído.',
+        data: updatedMessage,
       };
     } catch (error) {
-      if (
-        error instanceof NotFoundException ||
-        error instanceof BadRequestException
-      ) {
+      if (error instanceof NotFoundException) {
         throw error;
       }
 
@@ -456,25 +547,48 @@ export class ContactService {
   }
 
   /**
-   * Elimina un mensaje de contacto.
+   * Cuenta mensajes no leídos para ADMIN.
+   */
+  async countUnread() {
+    try {
+      const count = await this.prisma.contactMessage.count({
+        where: {
+          isRead: false,
+        },
+      });
+
+      return {
+        success: true,
+        message: 'Mensajes no leídos obtenidos correctamente.',
+        data: {
+          count,
+        },
+      };
+    } catch (error) {
+      console.error('Error al contar mensajes no leídos:', error);
+
+      throw new InternalServerErrorException(
+        'No se pudieron contar los mensajes no leídos.',
+      );
+    }
+  }
+
+  /**
+   * Elimina un mensaje.
    */
   async remove(id: number) {
     try {
-      if (!Number.isInteger(id)) {
-        throw new BadRequestException('Id inválido.');
-      }
-
-      const contactMessage = await this.prisma.contactMessage.findUnique({
+      const message = await this.prisma.contactMessage.findUnique({
         where: {
           id,
         },
       });
 
-      if (!contactMessage) {
-        throw new NotFoundException('Mensaje de contacto no encontrado.');
+      if (!message) {
+        throw new NotFoundException('Mensaje no encontrado.');
       }
 
-      await this.prisma.contactMessage.delete({
+      const deletedMessage = await this.prisma.contactMessage.delete({
         where: {
           id,
         },
@@ -482,14 +596,11 @@ export class ContactService {
 
       return {
         success: true,
-        message: 'Mensaje eliminado correctamente',
-        data: contactMessage,
+        message: 'Mensaje eliminado correctamente.',
+        data: deletedMessage,
       };
     } catch (error) {
-      if (
-        error instanceof NotFoundException ||
-        error instanceof BadRequestException
-      ) {
+      if (error instanceof NotFoundException) {
         throw error;
       }
 

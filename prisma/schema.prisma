@@ -41,6 +41,9 @@ model ContactMessage {
   quoteEstimatedTime   String?
   quoteExtras          Json?
   quoteSnapshot        Json?
+
+  adminPublicReply String?   @db.Text
+  adminReplyAt     DateTime?
 }
 
 enum ContactStatus {
@@ -62,14 +65,15 @@ enum Role {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  name      String
-  email     String   @unique
-  password  String
-  role      Role     @default(USER)
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                  Int      @id @default(autoincrement())
+  name                String
+  email               String   @unique
+  password            String
+  role                Role     @default(USER)
+  projectRequestLimit Int      @default(3)
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 }
 
 model Project {
