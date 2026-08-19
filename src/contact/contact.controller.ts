@@ -15,8 +15,8 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { ContactService } from './contact.service';
-import { CreateContactDto } from './dto/create-contact.dto';
 import { CreateContactCommentDto } from './dto/create-contact-comment.dto';
+import { CreateContactDto } from './dto/create-contact.dto';
 import { GetContactMessagesQueryDto } from './dto/get-contact-messages-query.dto';
 import { UpdateContactMessageDto } from './dto/update-contact-message.dto';
 
@@ -57,6 +57,20 @@ export class ContactController {
   }
 
   /**
+   * Ruta privada.
+   *
+   * Devuelve cuántos comentarios nuevos tiene el usuario autenticado.
+   *
+   * ADMIN cuenta comentarios enviados por USER.
+   * USER cuenta comentarios enviados por ADMIN dentro de sus propias solicitudes.
+   */
+  @UseGuards(JwtAuthGuard)
+  @Get('comments/unread-count')
+  countUnreadComments(@CurrentUser() user: CurrentUserPayload) {
+    return this.contactService.countUnreadComments(user);
+  }
+
+  /**
    * Ruta privada ADMIN.
    *
    * Cuenta mensajes no leídos.
@@ -90,6 +104,8 @@ export class ContactController {
    *
    * ADMIN puede ver cualquier solicitud.
    * USER solo puede ver solicitudes ligadas a su correo.
+   *
+   * Al abrir la conversación, se marcan como leídos los comentarios del otro rol.
    *
    * Importante:
    * Esta ruta debe ir antes de @Get(':id').

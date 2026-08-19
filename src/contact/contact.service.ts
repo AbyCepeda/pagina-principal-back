@@ -8,8 +8,8 @@ import {
 import { ContactStatus, Prisma, Role } from '@prisma/client';
 import { LeadAgentService } from '../lead-agent/lead-agent.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateContactDto } from './dto/create-contact.dto';
 import { CreateContactCommentDto } from './dto/create-contact-comment.dto';
+import { CreateContactDto } from './dto/create-contact.dto';
 import { GetContactMessagesQueryDto } from './dto/get-contact-messages-query.dto';
 import { UpdateContactMessageDto } from './dto/update-contact-message.dto';
 
@@ -439,11 +439,83 @@ export class ContactService {
   }
 
   /**
+   * Devuelve el rol contrario.
+   *
+   * Si quien abre es ADMIN, los mensajes pendientes son los del USER.
+   * Si quien abre es USER, los mensajes pendientes son los del ADMIN.
+   */
+  private getOppositeRole(role: Role) {
+    return role === Role.ADMIN ? Role.USER : Role.ADMIN;
+  }
+
+  /**
+   * Cuenta comentarios no leídos para el usuario autenticado.
+   *
+   * ADMIN:
+   * Cuenta todos los comentarios enviados por USER que no tengan readAt.
+   *
+   * USER:
+   * Cuenta comentarios enviados por ADMIN que no tengan readAt
+   * y que pertenezcan a solicitudes de su mismo correo.
+   */
+  async countUnreadComments(user: CurrentUserPayload) {
+    try {
+      const oppositeRole = this.getOppositeRole(user.role);
+
+      const where: Prisma.ContactMessageCommentWhereInput = {
+        readAt: null,
+        senderRole: oppositeRole,
+
+        ...(user.role === Role.USER
+          ? {
+              contactMessage: {
+                email: user.email.trim().toLowerCase(),
+              },
+            }
+          : {}),
+      };
+
+      const count = await this.prisma.contactMessageComment.count({
+        where,
+      });
+
+      return {
+        success: true,
+        message: 'Comentarios no leídos obtenidos correctamente.',
+        data: {
+          count,
+        },
+      };
+    } catch (error) {
+      console.error('Error al contar comentarios no leídos:', error);
+
+      throw new InternalServerErrorException(
+        'No se pudieron contar los comentarios no leídos.',
+      );
+    }
+  }
+
+  /**
    * Obtiene los comentarios de una solicitud.
+   *
+   * Al abrir la conversación, marca como leídos los comentarios del otro rol.
    */
   async findComments(contactMessageId: number, user: CurrentUserPayload) {
     try {
       await this.validateMessageAccess(contactMessageId, user);
+
+      const oppositeRole = this.getOppositeRole(user.role);
+
+      await this.prisma.contactMessageComment.updateMany({
+        where: {
+          contactMessageId,
+          senderRole: oppositeRole,
+          readAt: null,
+        },
+        data: {
+          readAt: new Date(),
+        },
+      });
 
       const comments = await this.prisma.contactMessageComment.findMany({
         where: {
@@ -509,6 +581,7 @@ export class ContactService {
           senderEmail: author.email.trim().toLowerCase(),
           senderRole: author.role,
           message: createContactCommentDto.message.trim(),
+          readAt: null,
         },
       });
 

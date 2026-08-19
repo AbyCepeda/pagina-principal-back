@@ -49,14 +49,15 @@ model ContactMessage {
 }
 
 model ContactMessageComment {
-  id               Int      @id @default(autoincrement())
+  id               Int       @id @default(autoincrement())
   contactMessageId Int
   senderId         Int?
   senderName       String
   senderEmail      String
   senderRole       Role
-  message          String   @db.Text
-  createdAt        DateTime @default(now())
+  message          String    @db.Text
+  readAt           DateTime?
+  createdAt        DateTime  @default(now())
 
   contactMessage ContactMessage @relation(fields: [contactMessageId], references: [id], onDelete: Cascade)
 
