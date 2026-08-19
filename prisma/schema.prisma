@@ -44,6 +44,25 @@ model ContactMessage {
 
   adminPublicReply String?   @db.Text
   adminReplyAt     DateTime?
+
+  comments ContactMessageComment[]
+}
+
+model ContactMessageComment {
+  id               Int      @id @default(autoincrement())
+  contactMessageId Int
+  senderId         Int?
+  senderName       String
+  senderEmail      String
+  senderRole       Role
+  message          String   @db.Text
+  createdAt        DateTime @default(now())
+
+  contactMessage ContactMessage @relation(fields: [contactMessageId], references: [id], onDelete: Cascade)
+
+  @@index([contactMessageId])
+  @@index([senderRole])
+  @@index([createdAt])
 }
 
 enum ContactStatus {

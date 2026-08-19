@@ -16,6 +16,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { ContactService } from './contact.service';
 import { CreateContactDto } from './dto/create-contact.dto';
+import { CreateContactCommentDto } from './dto/create-contact-comment.dto';
 import { GetContactMessagesQueryDto } from './dto/get-contact-messages-query.dto';
 import { UpdateContactMessageDto } from './dto/update-contact-message.dto';
 
@@ -80,6 +81,51 @@ export class ContactController {
   @Get()
   findAll(@Query() query: GetContactMessagesQueryDto) {
     return this.contactService.findAll(query);
+  }
+
+  /**
+   * Ruta privada.
+   *
+   * Obtiene los comentarios de una solicitud.
+   *
+   * ADMIN puede ver cualquier solicitud.
+   * USER solo puede ver solicitudes ligadas a su correo.
+   *
+   * Importante:
+   * Esta ruta debe ir antes de @Get(':id').
+   */
+  @UseGuards(JwtAuthGuard)
+  @Get(':id/comments')
+  findComments(
+    @Param('id') id: string,
+    @CurrentUser() user: CurrentUserPayload,
+  ) {
+    return this.contactService.findComments(Number(id), user);
+  }
+
+  /**
+   * Ruta privada.
+   *
+   * Agrega un comentario a una solicitud.
+   *
+   * ADMIN puede comentar cualquier solicitud.
+   * USER solo puede comentar solicitudes ligadas a su correo.
+   *
+   * Importante:
+   * Esta ruta debe ir antes de @Patch(':id') y @Get(':id').
+   */
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/comments')
+  createComment(
+    @Param('id') id: string,
+    @Body() createContactCommentDto: CreateContactCommentDto,
+    @CurrentUser() user: CurrentUserPayload,
+  ) {
+    return this.contactService.createComment(
+      Number(id),
+      createContactCommentDto,
+      user,
+    );
   }
 
   /**

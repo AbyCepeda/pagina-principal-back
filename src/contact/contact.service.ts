@@ -1,15 +1,23 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { ContactPriority, ContactStatus, Prisma } from '@prisma/client';
+import { ContactStatus, Prisma, Role } from '@prisma/client';
 import { LeadAgentService } from '../lead-agent/lead-agent.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateContactDto } from './dto/create-contact.dto';
+import { CreateContactCommentDto } from './dto/create-contact-comment.dto';
 import { GetContactMessagesQueryDto } from './dto/get-contact-messages-query.dto';
 import { UpdateContactMessageDto } from './dto/update-contact-message.dto';
+
+type CurrentUserPayload = {
+  id: number;
+  email: string;
+  role: Role;
+};
 
 @Injectable()
 export class ContactService {
@@ -386,6 +394,156 @@ export class ContactService {
 
       throw new InternalServerErrorException(
         'No se pudieron obtener tus solicitudes.',
+      );
+    }
+  }
+
+  /**
+   * Verifica que el usuario autenticado pueda acceder a una solicitud.
+   *
+   * ADMIN puede acceder a cualquier solicitud.
+   * USER solo puede acceder si el correo de la solicitud coincide con su correo.
+   */
+  private async validateMessageAccess(
+    contactMessageId: number,
+    user: CurrentUserPayload,
+  ) {
+    const message = await this.prisma.contactMessage.findUnique({
+      where: {
+        id: contactMessageId,
+      },
+      select: {
+        id: true,
+        email: true,
+      },
+    });
+
+    if (!message) {
+      throw new NotFoundException('Solicitud no encontrada.');
+    }
+
+    if (user.role === Role.ADMIN) {
+      return message;
+    }
+
+    const messageEmail = message.email.trim().toLowerCase();
+    const userEmail = user.email.trim().toLowerCase();
+
+    if (messageEmail !== userEmail) {
+      throw new ForbiddenException(
+        'No tienes permisos para ver esta solicitud.',
+      );
+    }
+
+    return message;
+  }
+
+  /**
+   * Obtiene los comentarios de una solicitud.
+   */
+  async findComments(contactMessageId: number, user: CurrentUserPayload) {
+    try {
+      await this.validateMessageAccess(contactMessageId, user);
+
+      const comments = await this.prisma.contactMessageComment.findMany({
+        where: {
+          contactMessageId,
+        },
+        orderBy: {
+          createdAt: 'asc',
+        },
+      });
+
+      return {
+        success: true,
+        message: 'Comentarios obtenidos correctamente.',
+        data: comments,
+      };
+    } catch (error) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof ForbiddenException
+      ) {
+        throw error;
+      }
+
+      console.error('Error al obtener comentarios:', error);
+
+      throw new InternalServerErrorException(
+        'No se pudieron obtener los comentarios.',
+      );
+    }
+  }
+
+  /**
+   * Crea un comentario dentro de una solicitud.
+   */
+  async createComment(
+    contactMessageId: number,
+    createContactCommentDto: CreateContactCommentDto,
+    user: CurrentUserPayload,
+  ) {
+    try {
+      await this.validateMessageAccess(contactMessageId, user);
+
+      const author = await this.prisma.user.findUnique({
+        where: {
+          id: user.id,
+        },
+        select: {
+          name: true,
+          email: true,
+          role: true,
+        },
+      });
+
+      if (!author) {
+        throw new NotFoundException('Usuario no encontrado.');
+      }
+
+      const comment = await this.prisma.contactMessageComment.create({
+        data: {
+          contactMessageId,
+          senderId: user.id,
+          senderName: author.name,
+          senderEmail: author.email.trim().toLowerCase(),
+          senderRole: author.role,
+          message: createContactCommentDto.message.trim(),
+        },
+      });
+
+      /**
+       * Si el usuario responde, marcamos la solicitud como no leída
+       * para que el admin la vuelva a revisar.
+       */
+      if (author.role === Role.USER) {
+        await this.prisma.contactMessage.update({
+          where: {
+            id: contactMessageId,
+          },
+          data: {
+            isRead: false,
+          },
+        });
+      }
+
+      return {
+        success: true,
+        message: 'Comentario enviado correctamente.',
+        data: comment,
+      };
+    } catch (error) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof ForbiddenException
+      ) {
+        throw error;
+      }
+
+      console.error('Error al crear comentario:', error);
+
+      throw new InternalServerErrorException(
+        'No se pudo enviar el comentario.',
       );
     }
   }
