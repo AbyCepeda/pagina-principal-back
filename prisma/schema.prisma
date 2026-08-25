@@ -45,6 +45,17 @@ model ContactMessage {
   adminPublicReply String?   @db.Text
   adminReplyAt     DateTime?
 
+  technicalSummary            String?   @db.Text
+  technicalDifficulty         String?
+  technicalEstimatedTime      String?
+  technicalSuggestedModules   Json?
+  technicalSuggestedTables    Json?
+  technicalSuggestedEndpoints Json?
+  technicalSuggestedScreens   Json?
+  technicalChecklist          Json?
+  technicalNotes              String?   @db.Text
+  technicalAnalysisAt         DateTime?
+
   comments ContactMessageComment[]
 }
 

@@ -147,6 +147,22 @@ export class ContactController {
   /**
    * Ruta privada ADMIN.
    *
+   * Genera un análisis técnico automático de la solicitud.
+   *
+   * Importante:
+   * Esta ruta debe ir antes de @Get(':id') para que Nest no interprete
+   * "technical-analysis" como si fuera parte de otra ruta dinámica.
+   */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @Post(':id/technical-analysis')
+  generateTechnicalAnalysis(@Param('id') id: string) {
+    return this.contactService.generateTechnicalAnalysis(Number(id));
+  }
+
+  /**
+   * Ruta privada ADMIN.
+   *
    * Obtiene un mensaje por ID.
    */
   @UseGuards(JwtAuthGuard, RolesGuard)
