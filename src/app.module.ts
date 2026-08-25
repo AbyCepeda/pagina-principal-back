@@ -14,6 +14,7 @@ import { LandingModule } from './landing/landing.module';
 import { PlansModule } from './plans/plans.module';
 import { LeadAgentModule } from './lead-agent/lead-agent.module';
 import { LandingSectionsModule } from './landing-sections/landing-sections.module';
+import { TechnicalAgentModule } from './technical-agent/technical-agent.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { LandingSectionsModule } from './landing-sections/landing-sections.modul
     PlansModule,
     LeadAgentModule,
     LandingSectionsModule,
+    TechnicalAgentModule,
   ],
   controllers: [AppController],
   providers: [AppService],
