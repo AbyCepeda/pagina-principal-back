@@ -4,6 +4,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { AuditLogModule } from './audit-log/audit-log.module';
 import { AuthModule } from './auth/auth.module';
 import { ContactOptionsModule } from './contact-options/contact-options.module';
 import { ContactModule } from './contact/contact.module';
@@ -33,6 +34,7 @@ import { UsersModule } from './users/users.module';
       ],
     }),
 
+    AuditLogModule,
     HealthModule,
     ContactModule,
     AuthModule,

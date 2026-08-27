@@ -174,3 +174,39 @@ model LandingSection {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+enum AuditLogAction {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN
+  CHANGE_PASSWORD
+  MARK_READ
+  GENERATE_ANALYSIS
+  STATUS_CHANGE
+  ROLE_CHANGE
+}
+
+model AuditLog {
+  id          Int            @id @default(autoincrement())
+  action      AuditLogAction
+  module      String
+  description String         @db.Text
+
+  actorId    Int?
+  actorName  String?
+  actorEmail String?
+  actorRole  Role?
+
+  targetId   Int?
+  targetType String?
+
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([action])
+  @@index([module])
+  @@index([actorId])
+  @@index([targetId])
+  @@index([createdAt])
+}
