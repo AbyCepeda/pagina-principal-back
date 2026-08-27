@@ -5,14 +5,18 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma, Role } from '@prisma/client';
+import { AuditLogAction, Prisma, Role } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import { AuditLogService } from '../audit-log/audit-log.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { GetUsersQueryDto } from './dto/get-users-query.dto';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditLogService: AuditLogService,
+  ) {}
 
   /**
    * Busca un usuario por correo.
@@ -66,12 +70,15 @@ export class UsersService {
    * Encripta la contraseña antes de guardar.
    * Estos usuarios sí nacen activos porque fueron creados por un administrador.
    */
-  async create(data: {
-    name: string;
-    email: string;
-    password: string;
-    role?: Role;
-  }) {
+  async create(
+    data: {
+      name: string;
+      email: string;
+      password: string;
+      role?: Role;
+    },
+    actorId?: number,
+  ) {
     try {
       const email = data.email.trim().toLowerCase();
 
@@ -99,6 +106,21 @@ export class UsersService {
           isActive: true,
           createdAt: true,
           updatedAt: true,
+        },
+      });
+
+      await this.auditLogService.createLog({
+        action: AuditLogAction.CREATE,
+        module: 'Usuarios',
+        description: `Se creó el usuario ${user.name} (${user.email}) con rol ${user.role}.`,
+        actorId,
+        targetId: user.id,
+        targetType: 'User',
+        metadata: {
+          userId: user.id,
+          email: user.email,
+          role: user.role,
+          isActive: user.isActive,
         },
       });
 
@@ -294,6 +316,19 @@ export class UsersService {
         },
       });
 
+      await this.auditLogService.createLog({
+        action: AuditLogAction.ROLE_CHANGE,
+        module: 'Usuarios',
+        description: `Se cambió el rol de ${updatedUser.name} (${updatedUser.email}) a ${updatedUser.role}.`,
+        actorId: currentUserId,
+        targetId: updatedUser.id,
+        targetType: 'User',
+        metadata: {
+          previousRole: user.role,
+          newRole: updatedUser.role,
+        },
+      });
+
       return {
         success: true,
         message: 'Rol actualizado correctamente',
@@ -349,6 +384,21 @@ export class UsersService {
           isActive: true,
           createdAt: true,
           updatedAt: true,
+        },
+      });
+
+      await this.auditLogService.createLog({
+        action: AuditLogAction.STATUS_CHANGE,
+        module: 'Usuarios',
+        description: isActive
+          ? `Se activó el usuario ${updatedUser.name} (${updatedUser.email}).`
+          : `Se desactivó el usuario ${updatedUser.name} (${updatedUser.email}).`,
+        actorId: currentUserId,
+        targetId: updatedUser.id,
+        targetType: 'User',
+        metadata: {
+          previousStatus: user.isActive,
+          newStatus: updatedUser.isActive,
         },
       });
 
@@ -461,6 +511,20 @@ export class UsersService {
           isActive: true,
           createdAt: true,
           updatedAt: true,
+        },
+      });
+
+      await this.auditLogService.createLog({
+        action: AuditLogAction.DELETE,
+        module: 'Usuarios',
+        description: `Se eliminó el usuario ${deletedUser.name} (${deletedUser.email}).`,
+        actorId: currentUserId,
+        targetId: deletedUser.id,
+        targetType: 'User',
+        metadata: {
+          email: deletedUser.email,
+          role: deletedUser.role,
+          wasActive: deletedUser.isActive,
         },
       });
 

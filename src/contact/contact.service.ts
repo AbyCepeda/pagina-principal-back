@@ -5,7 +5,8 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { ContactStatus, Prisma, Role } from '@prisma/client';
+import { AuditLogAction, ContactStatus, Prisma, Role } from '@prisma/client';
+import { AuditLogService } from '../audit-log/audit-log.service';
 import { LeadAgentService } from '../lead-agent/lead-agent.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateContactCommentDto } from './dto/create-contact-comment.dto';
@@ -42,6 +43,7 @@ export class ContactService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly leadAgentService: LeadAgentService,
+    private readonly auditLogService: AuditLogService,
   ) {}
 
   /**
@@ -940,7 +942,7 @@ export class ContactService {
    *
    * Solo lo ejecuta ADMIN desde el controller.
    */
-  async generateTechnicalAnalysis(id: number) {
+  async generateTechnicalAnalysis(id: number, actorId?: number) {
     try {
       const message = await this.prisma.contactMessage.findUnique({
         where: {
@@ -978,6 +980,20 @@ export class ContactService {
             analysis.technicalChecklist as Prisma.InputJsonValue,
           technicalNotes: analysis.technicalNotes,
           technicalAnalysisAt: new Date(),
+        },
+      });
+
+      await this.auditLogService.createLog({
+        action: AuditLogAction.GENERATE_ANALYSIS,
+        module: 'Mensajes',
+        description: `Se generó análisis técnico para la solicitud de ${message.name} (${message.email}).`,
+        actorId,
+        targetId: updatedMessage.id,
+        targetType: 'ContactMessage',
+        metadata: {
+          projectType: message.projectType,
+          difficulty: analysis.technicalDifficulty,
+          estimatedTime: analysis.technicalEstimatedTime,
         },
       });
 
@@ -1040,7 +1056,11 @@ export class ContactService {
    * - adminNotes: solo admin
    * - adminPublicReply: visible para usuario
    */
-  async update(id: number, updateContactMessageDto: UpdateContactMessageDto) {
+  async update(
+    id: number,
+    updateContactMessageDto: UpdateContactMessageDto,
+    actorId?: number,
+  ) {
     try {
       const message = await this.prisma.contactMessage.findUnique({
         where: {
@@ -1095,6 +1115,22 @@ export class ContactService {
         },
       });
 
+      await this.auditLogService.createLog({
+        action: AuditLogAction.UPDATE,
+        module: 'Mensajes',
+        description: `Se actualizó el seguimiento de la solicitud de ${updatedMessage.name} (${updatedMessage.email}).`,
+        actorId,
+        targetId: updatedMessage.id,
+        targetType: 'ContactMessage',
+        metadata: {
+          previousStatus: message.status,
+          newStatus: updatedMessage.status,
+          previousPriority: message.priority,
+          newPriority: updatedMessage.priority,
+          publicReplyUpdated: hasPublicReply,
+        },
+      });
+
       return {
         success: true,
         message: 'Mensaje actualizado correctamente.',
@@ -1116,7 +1152,7 @@ export class ContactService {
   /**
    * Marca un mensaje como leído.
    */
-  async markAsRead(id: number) {
+  async markAsRead(id: number, actorId?: number) {
     try {
       const message = await this.prisma.contactMessage.findUnique({
         where: {
@@ -1134,6 +1170,19 @@ export class ContactService {
         },
         data: {
           isRead: true,
+        },
+      });
+
+      await this.auditLogService.createLog({
+        action: AuditLogAction.MARK_READ,
+        module: 'Mensajes',
+        description: `Se marcó como leída la solicitud de ${updatedMessage.name} (${updatedMessage.email}).`,
+        actorId,
+        targetId: updatedMessage.id,
+        targetType: 'ContactMessage',
+        metadata: {
+          previousReadStatus: message.isRead,
+          newReadStatus: updatedMessage.isRead,
         },
       });
 
@@ -1185,7 +1234,7 @@ export class ContactService {
   /**
    * Elimina un mensaje.
    */
-  async remove(id: number) {
+  async remove(id: number, actorId?: number) {
     try {
       const message = await this.prisma.contactMessage.findUnique({
         where: {
@@ -1200,6 +1249,20 @@ export class ContactService {
       const deletedMessage = await this.prisma.contactMessage.delete({
         where: {
           id,
+        },
+      });
+
+      await this.auditLogService.createLog({
+        action: AuditLogAction.DELETE,
+        module: 'Mensajes',
+        description: `Se eliminó la solicitud de ${deletedMessage.name} (${deletedMessage.email}).`,
+        actorId,
+        targetId: deletedMessage.id,
+        targetType: 'ContactMessage',
+        metadata: {
+          projectType: deletedMessage.projectType,
+          status: deletedMessage.status,
+          priority: deletedMessage.priority,
         },
       });
 
