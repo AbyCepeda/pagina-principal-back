@@ -1,5 +1,6 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import helmet from 'helmet';
 import { AppModule } from './app.module';
 
 function getAllowedOrigins() {
@@ -16,6 +17,8 @@ function getAllowedOrigins() {
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  app.use(helmet());
 
   app.enableCors({
     origin: getAllowedOrigins(),
@@ -35,7 +38,7 @@ async function bootstrap() {
 
   await app.listen(port);
 
-  console.log(`Backend corriendo en puerto ${port}`);
+ // console.log(`Backend corriendo en puerto ${port}`);
 }
 
 bootstrap();
