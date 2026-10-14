@@ -11,6 +11,10 @@ import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 
+// Solo se usa para ejecutar bcrypt cuando el correo no existe; no es una credencial.
+const DUMMY_PASSWORD_HASH =
+  '$2b$10$Z72PPSFbhJ.OgIFktRkx.er3zjL1PucwmLIGJMxaL0MmgFxEsveGy';
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -44,23 +48,15 @@ export class AuthService {
   async login(loginDto: LoginDto) {
     const user = await this.usersService.findByEmail(loginDto.email);
 
-    if (!user) {
-      throw new UnauthorizedException('Correo o contraseña incorrectos.');
-    }
-
-    if (!user.isActive) {
-      throw new UnauthorizedException(
-        'Tu usuario está desactivado. Contacta al administrador.',
-      );
-    }
-
     const isPasswordValid = await bcrypt.compare(
       loginDto.password,
-      user.password,
+      user?.password ?? DUMMY_PASSWORD_HASH,
     );
 
-    if (!isPasswordValid) {
-      throw new UnauthorizedException('Correo o contraseña incorrectos.');
+    if (!user || !isPasswordValid || !user.isActive) {
+      throw new UnauthorizedException(
+        'No se pudo iniciar sesión. Revisa tus credenciales; si tu cuenta está pendiente de activación, contacta al administrador.',
+      );
     }
 
     const payload = {
