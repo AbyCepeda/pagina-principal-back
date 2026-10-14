@@ -1,0 +1,17 @@
+{
+  "displayName": "unit",
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": "..",
+  "testEnvironment": "node",
+  "testMatch": [
+    "<rootDir>/src/**/*.spec.ts",
+    "<rootDir>/test/**/*.unit-spec.ts"
+  ],
+  "transform": { "^.+\\.(t|j)s$": "ts-jest" },
+  "collectCoverageFrom": [
+    "src/**/*.ts",
+    "prisma/seed-credentials.ts",
+    "!src/main.ts",
+    "!src/**/*.spec.ts"
+  ]
+}
