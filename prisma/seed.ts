@@ -1,7 +1,8 @@
-import 'dotenv/config'
-import { ContactOptionType, PrismaClient, Role } from '@prisma/client'
-import { PrismaPg } from '@prisma/adapter-pg'
-import * as bcrypt from 'bcrypt'
+import 'dotenv/config';
+import { ContactOptionType, PrismaClient, Role } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import * as bcrypt from 'bcrypt';
+import { getSeedAdminCredentials } from './seed-credentials';
 
 /**
  * Adapter de Prisma para conectarse a PostgreSQL.
@@ -11,11 +12,11 @@ import * as bcrypt from 'bcrypt'
  */
 const adapter = new PrismaPg({
   connectionString: process.env.DATABASE_URL,
-})
+});
 
 const prisma = new PrismaClient({
   adapter,
-})
+});
 
 /**
  * Seed inicial del sistema.
@@ -26,19 +27,26 @@ const prisma = new PrismaClient({
  * - Paquetes iniciales para la landing
  */
 async function main() {
-  const adminEmail = 'admin@test.com'
-  const adminPassword = '123456'
+  const { email: adminEmail, password: adminPassword } =
+    getSeedAdminCredentials(process.env);
 
   const existingAdmin = await prisma.user.findUnique({
     where: {
       email: adminEmail,
     },
-  })
+  });
 
   if (existingAdmin) {
-    console.log(`El usuario admin ya existe: ${adminEmail}`)
+    if (existingAdmin.role !== Role.ADMIN || !existingAdmin.isActive) {
+      throw new Error(
+        'El correo configurado pertenece a una cuenta que no es un ADMIN activo. El seed no modifica sus permisos ni su estado.',
+      );
+    }
+    console.log(
+      'El administrador inicial ya existe; se conservan sus credenciales.',
+    );
   } else {
-    const hashedPassword = await bcrypt.hash(adminPassword, 10)
+    const hashedPassword = await bcrypt.hash(adminPassword, 10);
 
     const admin = await prisma.user.create({
       data: {
@@ -56,10 +64,10 @@ async function main() {
         isActive: true,
         createdAt: true,
       },
-    })
+    });
 
-    console.log('Usuario ADMIN creado correctamente:')
-    console.log(admin)
+    console.log('Usuario ADMIN creado correctamente:');
+    console.log(admin);
   }
 
   const contactOptions = [
@@ -141,7 +149,7 @@ async function main() {
       value: 'Aún no lo sé',
       sortOrder: 6,
     },
-  ]
+  ];
 
   for (const option of contactOptions) {
     await prisma.contactOption.upsert({
@@ -163,10 +171,10 @@ async function main() {
         sortOrder: option.sortOrder,
         isActive: true,
       },
-    })
+    });
   }
 
-  console.log('Opciones de contacto verificadas correctamente.')
+  console.log('Opciones de contacto verificadas correctamente.');
 
   const plans = [
     {
@@ -247,7 +255,7 @@ async function main() {
       isActive: true,
       sortOrder: 4,
     },
-  ]
+  ];
 
   for (const plan of plans) {
     await prisma.plan.upsert({
@@ -266,17 +274,20 @@ async function main() {
         sortOrder: plan.sortOrder,
       },
       create: plan,
-    })
+    });
   }
 
-  console.log('Paquetes verificados correctamente.')
+  console.log('Paquetes verificados correctamente.');
 }
 
 main()
   .catch((error) => {
-    console.error('Error ejecutando seed:', error)
-    process.exit(1)
+    console.error(
+      'Error ejecutando seed:',
+      error instanceof Error ? error.message : 'Error desconocido.',
+    );
+    process.exitCode = 1;
   })
   .finally(async () => {
-    await prisma.$disconnect()
-  })
+    await prisma.$disconnect();
+  });
