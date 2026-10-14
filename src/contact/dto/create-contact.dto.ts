@@ -1,13 +1,13 @@
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsArray,
   IsEmail,
-  IsInt,
+  ArrayMaxSize,
   IsNotEmpty,
-  IsObject,
+  ArrayUnique,
   IsOptional,
   IsString,
   MaxLength,
-  Min,
   MinLength,
 } from 'class-validator';
 
@@ -41,51 +41,16 @@ export class CreateContactDto {
     message: 'quotePlanSlug no debe superar los 120 caracteres.',
   })
   quotePlanSlug?: string;
-
   @IsOptional()
-  @IsString({ message: 'quotePlanName debe ser texto.' })
-  @MaxLength(120, {
-    message: 'quotePlanName no debe superar los 120 caracteres.',
+  @IsArray()
+  @ArrayMaxSize(8)
+  @ArrayUnique()
+  @IsString({ each: true })
+  @MaxLength(80, { each: true })
+  @ApiPropertyOptional({
+    type: [String],
+    example: ['custom-design'],
+    description: 'IDs de extras; el servidor calcula los precios.',
   })
-  quotePlanName?: string;
-
-  @IsOptional()
-  @IsInt({ message: 'quoteMinPrice debe ser un número entero.' })
-  @Min(0, { message: 'quoteMinPrice no puede ser menor a 0.' })
-  quoteMinPrice?: number;
-
-  @IsOptional()
-  @IsInt({ message: 'quoteMaxPrice debe ser un número entero.' })
-  @Min(0, { message: 'quoteMaxPrice no puede ser menor a 0.' })
-  quoteMaxPrice?: number;
-
-  @IsOptional()
-  @IsString({ message: 'quoteSuggestedBudget debe ser texto.' })
-  @MaxLength(120, {
-    message: 'quoteSuggestedBudget no debe superar los 120 caracteres.',
-  })
-  quoteSuggestedBudget?: string;
-
-  @IsOptional()
-  @IsString({ message: 'quoteComplexity debe ser texto.' })
-  @MaxLength(40, {
-    message: 'quoteComplexity no debe superar los 40 caracteres.',
-  })
-  quoteComplexity?: string;
-
-  @IsOptional()
-  @IsString({ message: 'quoteEstimatedTime debe ser texto.' })
-  @MaxLength(120, {
-    message: 'quoteEstimatedTime no debe superar los 120 caracteres.',
-  })
-  quoteEstimatedTime?: string;
-
-  @IsOptional()
-  @IsArray({ message: 'quoteExtras debe ser una lista.' })
-  @IsObject({ each: true, message: 'Cada extra debe ser un objeto.' })
-  quoteExtras?: Record<string, unknown>[];
-
-  @IsOptional()
-  @IsObject({ message: 'quoteSnapshot debe ser un objeto.' })
-  quoteSnapshot?: Record<string, unknown>;
+  quoteExtraIds?: string[];
 }
