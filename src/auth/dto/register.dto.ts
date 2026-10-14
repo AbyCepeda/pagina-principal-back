@@ -1,3 +1,5 @@
+import { IsNewPassword } from '../../common/validation/new-password.decorator';
+import { ApiProperty } from '@nestjs/swagger';
 import {
   IsEmail,
   IsNotEmpty,
@@ -18,9 +20,14 @@ export class RegisterDto {
   @MaxLength(120, { message: 'El correo no debe superar los 120 caracteres.' })
   email!: string;
 
-  @IsString({ message: 'La contraseña debe ser texto.' })
-  @IsNotEmpty({ message: 'La contraseña es obligatoria.' })
-  @MinLength(6, { message: 'La contraseña debe tener al menos 6 caracteres.' })
-  @MaxLength(72, { message: 'La contraseña no debe superar los 72 caracteres.' })
+  @IsNewPassword()
+  @ApiProperty({
+    format: 'password',
+    writeOnly: true,
+    minLength: 15,
+    maxLength: 72,
+    description:
+      'Mínimo 15 caracteres; máximo 72 bytes UTF-8. Se conservan los espacios.',
+  })
   password!: string;
 }
