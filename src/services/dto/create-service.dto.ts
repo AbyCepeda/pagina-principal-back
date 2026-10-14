@@ -16,7 +16,9 @@ export class CreateServiceDto {
 
   @IsString({ message: 'La descripción debe ser texto.' })
   @IsNotEmpty({ message: 'La descripción es obligatoria.' })
-  @MinLength(10, { message: 'La descripción debe tener al menos 10 caracteres.' })
+  @MinLength(10, {
+    message: 'La descripción debe tener al menos 10 caracteres.',
+  })
   description!: string;
 
   @IsString({ message: 'El icono debe ser texto.' })

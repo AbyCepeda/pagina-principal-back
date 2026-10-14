@@ -1,3 +1,5 @@
+import { ApiTags, ApiNotFoundResponse } from '@nestjs/swagger';
+import { ApiEndpoint } from '../common/decorators/api-endpoint.decorator';
 import {
   Body,
   Controller,
@@ -18,6 +20,7 @@ import { GetServicesQueryDto } from './dto/get-services-query.dto';
 import { UpdateServiceDto } from './dto/update-service.dto';
 import { ServicesService } from './services.service';
 
+@ApiTags('Servicios')
 @Controller('services')
 export class ServicesController {
   constructor(private readonly servicesService: ServicesService) {}
@@ -26,6 +29,11 @@ export class ServicesController {
    * Ruta pública para la landing.
    * Solo muestra servicios activos.
    */
+  @ApiEndpoint({
+    summary: 'Consultar servicios activos',
+    access: 'public',
+    status: 200,
+  })
   @Get('public')
   findPublic() {
     return this.servicesService.findPublic();
@@ -40,6 +48,7 @@ export class ServicesController {
    */
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
+  @ApiEndpoint({ summary: 'Listar servicios', access: 'admin', status: 200 })
   @Get()
   findAll(@Query() query: GetServicesQueryDto) {
     return this.servicesService.findAll(query);
@@ -48,6 +57,12 @@ export class ServicesController {
   /**
    * Ruta pública para ver un servicio específico.
    */
+  @ApiEndpoint({
+    summary: 'Consultar un registro de servicios',
+    access: 'public',
+    status: 200,
+  })
+  @ApiNotFoundResponse({ description: 'Registro no encontrado.' })
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.servicesService.findOne(Number(id));
@@ -59,6 +74,11 @@ export class ServicesController {
    */
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
+  @ApiEndpoint({
+    summary: 'Crear un registro de servicios',
+    access: 'admin',
+    status: 201,
+  })
   @Post()
   create(@Body() createServiceDto: CreateServiceDto) {
     return this.servicesService.create(createServiceDto);
@@ -70,6 +90,12 @@ export class ServicesController {
    */
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
+  @ApiEndpoint({
+    summary: 'Actualizar un registro de servicios',
+    access: 'admin',
+    status: 200,
+  })
+  @ApiNotFoundResponse({ description: 'Registro no encontrado.' })
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateServiceDto: UpdateServiceDto) {
     return this.servicesService.update(Number(id), updateServiceDto);
@@ -81,6 +107,12 @@ export class ServicesController {
    */
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
+  @ApiEndpoint({
+    summary: 'Eliminar un registro de servicios',
+    access: 'admin',
+    status: 200,
+  })
+  @ApiNotFoundResponse({ description: 'Registro no encontrado.' })
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.servicesService.remove(Number(id));

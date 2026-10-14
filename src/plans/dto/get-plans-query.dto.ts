@@ -16,7 +16,7 @@ export class GetPlansQueryDto {
   limit?: number = 10;
 
   @IsOptional()
-  @Transform(({ value }) => {
+  @Transform(({ value }: { value: unknown }) => {
     if (value === 'true') return true;
     if (value === 'false') return false;
     return value;

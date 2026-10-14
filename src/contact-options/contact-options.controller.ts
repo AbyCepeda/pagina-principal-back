@@ -1,3 +1,5 @@
+import { ApiTags, ApiNotFoundResponse } from '@nestjs/swagger';
+import { ApiEndpoint } from '../common/decorators/api-endpoint.decorator';
 import {
   Body,
   Controller,
@@ -18,6 +20,7 @@ import { GetContactOptionsQueryDto } from './dto/get-contact-options-query.dto';
 import { UpdateContactOptionDto } from './dto/update-contact-option.dto';
 import { CreateContactOptionDto } from './dto/create-contact-option.dto';
 
+@ApiTags('Opciones de contacto')
 @Controller('contact-options')
 export class ContactOptionsController {
   constructor(private readonly contactOptionsService: ContactOptionsService) {}
@@ -25,6 +28,11 @@ export class ContactOptionsController {
   /**
    * Ruta pública para llenar los selects de la landing.
    */
+  @ApiEndpoint({
+    summary: 'Consultar opciones de contacto activos',
+    access: 'public',
+    status: 200,
+  })
   @Get('public')
   findPublic(@Query() query: GetContactOptionsQueryDto) {
     return this.contactOptionsService.findPublic(query);
@@ -35,6 +43,11 @@ export class ContactOptionsController {
    */
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
+  @ApiEndpoint({
+    summary: 'Listar opciones de contacto',
+    access: 'admin',
+    status: 200,
+  })
   @Get()
   findAll(@Query() query: GetContactOptionsQueryDto) {
     return this.contactOptionsService.findAll(query);
@@ -45,6 +58,12 @@ export class ContactOptionsController {
    */
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
+  @ApiEndpoint({
+    summary: 'Consultar un registro de opciones de contacto',
+    access: 'admin',
+    status: 200,
+  })
+  @ApiNotFoundResponse({ description: 'Registro no encontrado.' })
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.contactOptionsService.findOne(Number(id));
@@ -55,6 +74,11 @@ export class ContactOptionsController {
    */
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
+  @ApiEndpoint({
+    summary: 'Crear un registro de opciones de contacto',
+    access: 'admin',
+    status: 201,
+  })
   @Post()
   create(@Body() createContactOptionDto: CreateContactOptionDto) {
     return this.contactOptionsService.create(createContactOptionDto);
@@ -65,6 +89,12 @@ export class ContactOptionsController {
    */
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
+  @ApiEndpoint({
+    summary: 'Actualizar un registro de opciones de contacto',
+    access: 'admin',
+    status: 200,
+  })
+  @ApiNotFoundResponse({ description: 'Registro no encontrado.' })
   @Patch(':id')
   update(
     @Param('id') id: string,
@@ -81,6 +111,12 @@ export class ContactOptionsController {
    */
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
+  @ApiEndpoint({
+    summary: 'Eliminar un registro de opciones de contacto',
+    access: 'admin',
+    status: 200,
+  })
+  @ApiNotFoundResponse({ description: 'Registro no encontrado.' })
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.contactOptionsService.remove(Number(id));

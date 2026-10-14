@@ -1,4 +1,10 @@
 import {
+  ApiTags,
+  ApiNotFoundResponse,
+  ApiConflictResponse,
+} from '@nestjs/swagger';
+import { ApiEndpoint } from '../common/decorators/api-endpoint.decorator';
+import {
   Body,
   Controller,
   Delete,
@@ -26,6 +32,7 @@ type CurrentUserPayload = {
   role: Role;
 };
 
+@ApiTags('Usuarios')
 @Controller('users')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.ADMIN)
@@ -37,9 +44,18 @@ export class UsersController {
    *
    * Esta ruta sí permite elegir USER o ADMIN porque está protegida.
    */
+  @ApiEndpoint({
+    summary: 'Crear un usuario activo',
+    access: 'admin',
+    status: 201,
+  })
+  @ApiConflictResponse({ description: 'El correo ya está registrado.' })
   @Post()
-  async create(@Body() createUserDto: CreateUserDto) {
-    const user = await this.usersService.create(createUserDto);
+  async create(
+    @Body() createUserDto: CreateUserDto,
+    @CurrentUser() currentUser: CurrentUserPayload,
+  ) {
+    const user = await this.usersService.create(createUserDto, currentUser.id);
 
     return {
       success: true,
@@ -51,6 +67,11 @@ export class UsersController {
   /**
    * Lista usuarios del sistema con paginación, búsqueda y filtros.
    */
+  @ApiEndpoint({
+    summary: 'Listar y filtrar usuarios',
+    access: 'admin',
+    status: 200,
+  })
   @Get()
   findAll(@Query() query: GetUsersQueryDto) {
     return this.usersService.findAll(query);
@@ -59,6 +80,12 @@ export class UsersController {
   /**
    * Cambia el rol de un usuario.
    */
+  @ApiEndpoint({
+    summary: 'Cambiar el rol de un usuario',
+    access: 'admin',
+    status: 200,
+  })
+  @ApiNotFoundResponse({ description: 'Registro no encontrado.' })
   @Patch(':id/role')
   updateRole(
     @Param('id') id: string,
@@ -75,6 +102,12 @@ export class UsersController {
   /**
    * Activa o desactiva un usuario.
    */
+  @ApiEndpoint({
+    summary: 'Activar o desactivar un usuario',
+    access: 'admin',
+    status: 200,
+  })
+  @ApiNotFoundResponse({ description: 'Registro no encontrado.' })
   @Patch(':id/status')
   updateStatus(
     @Param('id') id: string,
@@ -91,8 +124,13 @@ export class UsersController {
   /**
    * Elimina un usuario.
    */
+  @ApiEndpoint({ summary: 'Eliminar un usuario', access: 'admin', status: 200 })
+  @ApiNotFoundResponse({ description: 'Registro no encontrado.' })
   @Delete(':id')
-  remove(@Param('id') id: string, @CurrentUser() currentUser: CurrentUserPayload) {
+  remove(
+    @Param('id') id: string,
+    @CurrentUser() currentUser: CurrentUserPayload,
+  ) {
     return this.usersService.remove(Number(id), currentUser.id);
   }
 }

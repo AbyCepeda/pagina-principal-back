@@ -18,7 +18,9 @@ export class CreateContactOptionDto {
 
   @IsString({ message: 'La etiqueta debe ser texto.' })
   @IsNotEmpty({ message: 'La etiqueta es obligatoria.' })
-  @MaxLength(120, { message: 'La etiqueta no debe superar los 120 caracteres.' })
+  @MaxLength(120, {
+    message: 'La etiqueta no debe superar los 120 caracteres.',
+  })
   label!: string;
 
   @IsString({ message: 'El valor debe ser texto.' })
