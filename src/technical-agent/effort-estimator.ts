@@ -11,6 +11,62 @@ type Task = { id: string; label: string; minHours: number; maxHours: number };
 // Los alias comparten una tarea para no sumar dos veces el mismo trabajo.
 const taskCatalog: Array<Task & { modules: string[] }> = [
   {
+    id: 'visual-design',
+    label: 'Diseño visual personalizado',
+    minHours: 12,
+    maxHours: 24,
+    modules: ['Diseño personalizado'],
+  },
+  {
+    id: 'database',
+    label: 'Configuración y estructura inicial de base de datos',
+    minHours: 6,
+    maxHours: 12,
+    modules: ['Base de datos'],
+  },
+  {
+    id: 'contact-form',
+    label: 'Formulario de contacto con validación y envío',
+    minHours: 4,
+    maxHours: 8,
+    modules: ['Formulario de contacto'],
+  },
+  {
+    id: 'seo',
+    label: 'Metadatos y SEO básico',
+    minHours: 2,
+    maxHours: 4,
+    modules: ['SEO básico'],
+  },
+  {
+    id: 'gallery',
+    label: 'Galería o sección de proyectos',
+    minHours: 6,
+    maxHours: 12,
+    modules: ['Galería de proyectos'],
+  },
+  {
+    id: 'inbox',
+    label: 'Almacenamiento y seguimiento básico de contactos',
+    minHours: 8,
+    maxHours: 16,
+    modules: ['Bandeja de contactos'],
+  },
+  {
+    id: 'business-crud',
+    label: 'Un CRUD de negocio: listado, formulario y API',
+    minHours: 12,
+    maxHours: 24,
+    modules: ['CRUD de negocio'],
+  },
+  {
+    id: 'second-crud',
+    label: 'Segundo CRUD de negocio',
+    minHours: 12,
+    maxHours: 24,
+    modules: ['Segundo CRUD de negocio'],
+  },
+  {
     id: 'public',
     label: 'Página pública adaptable',
     minHours: 12,

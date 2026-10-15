@@ -61,14 +61,16 @@ describe('Quote API integrity', () => {
       response.body as {
         data: {
           extras: { id: string }[];
-          planBasePrices: Record<string, { min: number }>;
+          plans: Record<string, { includedExtraIds: string[] }>;
         };
       }
     ).data;
     expect(data.extras.some((extra) => extra.id === 'custom-design')).toBe(
       true,
     );
-    expect(data.planBasePrices['landing-basica'].min).toBe(5000);
+    expect(data.plans['sistema-administrativo'].includedExtraIds).toEqual(
+      expect.arrayContaining(['admin-panel', 'auth-roles', 'database']),
+    );
     expect(prisma.plan.findUnique).not.toHaveBeenCalled();
     expect(prisma.contactMessage.create).not.toHaveBeenCalled();
   });
@@ -81,12 +83,12 @@ describe('Quote API integrity', () => {
     const data = (response.body as { data: Record<string, unknown> }).data;
     expect(data).toMatchObject({
       quotePlanName: 'Nombre del servidor',
-      quoteMinPrice: 7500,
-      quoteMaxPrice: 14000,
-      budget: '$10,000 - $20,000 MXN',
-      quoteComplexity: 'Baja',
+      quoteMinPrice: 17700,
+      quoteMaxPrice: 38100,
+      budget: '$20,000 - $40,000 MXN',
+      quoteComplexity: 'Media',
       quoteSnapshot: {
-        estimate: { minPrice: 7500, maxPrice: 14000 },
+        estimate: { minPrice: 17700, maxPrice: 38100 },
         plan: { name: 'Nombre del servidor' },
       },
     });
@@ -163,6 +165,68 @@ describe('Quote API integrity', () => {
     prisma.contactMessage.count.mockResolvedValue(3);
     await request(app.getHttpServer()).post('/contact').send(body).expect(400);
     expect(prisma.contactMessage.create).not.toHaveBeenCalled();
+  });
+
+  it('previews the same result as submission without storing a contact', async () => {
+    const preview = await request(app.getHttpServer())
+      .post('/contact/quote-preview')
+      .send({
+        quotePlanSlug: body.quotePlanSlug,
+        quoteExtraIds: body.quoteExtraIds,
+      })
+      .expect(200);
+    expect(prisma.contactMessage.create).not.toHaveBeenCalled();
+    expect(prisma.contactMessage.count).not.toHaveBeenCalled();
+    const saved = await request(app.getHttpServer())
+      .post('/contact')
+      .send(body)
+      .expect(201);
+    expect((saved.body as { data: unknown }).data).toMatchObject(
+      (preview.body as { data: object }).data,
+    );
+  });
+
+  it.each([
+    { quotePlanSlug: '' },
+    { quotePlanSlug: 'landing-basica', quoteExtraIds: ['unknown'] },
+    {
+      quotePlanSlug: 'landing-basica',
+      quoteExtraIds: ['database', 'database'],
+    },
+    { quotePlanSlug: 'landing-basica', quoteExtraIds: [42] },
+    { quotePlanSlug: 'landing-basica', hourlyRate: 1 },
+    { quotePlanSlug: 'landing-basica', quoteMinPrice: 1 },
+  ])('rejects invalid previews: %j', async (payload) => {
+    await request(app.getHttpServer())
+      .post('/contact/quote-preview')
+      .send(payload)
+      .expect(400);
+    expect(prisma.contactMessage.create).not.toHaveBeenCalled();
+  });
+
+  it.each([null, { ...plan, isActive: false }])(
+    'rejects preview of unavailable plan',
+    async (value) => {
+      prisma.plan.findUnique.mockResolvedValue(value);
+      await request(app.getHttpServer())
+        .post('/contact/quote-preview')
+        .send({ quotePlanSlug: 'landing-basica' })
+        .expect(400);
+    },
+  );
+
+  it('keeps custom scopes pending and preserves the customer budget', async () => {
+    prisma.plan.findUnique.mockResolvedValue({ ...plan, slug: 'custom-plan' });
+    const response = await request(app.getHttpServer())
+      .post('/contact')
+      .send({ ...body, quotePlanSlug: 'custom-plan' })
+      .expect(201);
+    expect((response.body as { data: unknown }).data).toMatchObject({
+      quoteMinPrice: null,
+      quoteMaxPrice: null,
+      budget: body.budget,
+      quoteSnapshot: { effort: { status: 'needs-scope', price: null } },
+    });
   });
   afterAll(async () => {
     if (app) await app.close();

@@ -18,6 +18,17 @@ export class ContactService {
     private readonly leadAgentService: LeadAgentService,
   ) {}
 
+  async previewQuote(slug: string, extraIds: string[]) {
+    const plan = await this.prisma.plan.findUnique({
+      where: { slug: slug.trim() },
+    });
+    if (!plan || !plan.isActive)
+      throw new BadRequestException(
+        'El paquete seleccionado no está disponible.',
+      );
+    return calculateQuote(plan, extraIds);
+  }
+
   /**
    * Crea una solicitud de contacto desde la landing.
    *
@@ -38,16 +49,12 @@ export class ContactService {
       const extraIds = createContactDto.quoteExtraIds ?? [];
       let quote: ReturnType<typeof calculateQuote> | undefined;
       if (createContactDto.quotePlanSlug != null) {
-        const plan = await this.prisma.plan.findUnique({
-          where: { slug: createContactDto.quotePlanSlug.trim() },
-        });
-        if (!plan || !plan.isActive) {
-          throw new BadRequestException(
-            'El paquete seleccionado no está disponible.',
-          );
-        }
-        quote = calculateQuote(plan, extraIds);
-        normalizedContact.budget = quote.quoteSuggestedBudget;
+        quote = await this.previewQuote(
+          createContactDto.quotePlanSlug,
+          extraIds,
+        );
+        if (quote.quoteMaxPrice !== null)
+          normalizedContact.budget = quote.quoteSuggestedBudget;
       } else if (extraIds.length > 0) {
         throw new BadRequestException(
           'Selecciona un paquete para cotizar extras.',

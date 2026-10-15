@@ -13,6 +13,7 @@ import {
   Post,
   Query,
   UseGuards,
+  HttpCode,
 } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -21,6 +22,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { ContactService } from './contact.service';
 import { getQuoteCatalog } from './quote-estimator';
+import { PreviewQuoteDto } from './dto/preview-quote.dto';
 import { CreateContactCommentDto } from './dto/create-contact-comment.dto';
 import { CreateContactDto } from './dto/create-contact.dto';
 import { GetContactMessagesQueryDto } from './dto/get-contact-messages-query.dto';
@@ -42,6 +44,22 @@ export class ContactController {
   @Get('quote-catalog')
   quoteCatalog() {
     return { success: true, data: getQuoteCatalog() };
+  }
+
+  @ApiEndpoint({
+    summary: 'Estimar un paquete y sus extras sin guardar una solicitud',
+    status: 200,
+  })
+  @Post('quote-preview')
+  @HttpCode(200)
+  async previewQuote(@Body() dto: PreviewQuoteDto) {
+    return {
+      success: true,
+      data: await this.contactService.previewQuote(
+        dto.quotePlanSlug,
+        dto.quoteExtraIds ?? [],
+      ),
+    };
   }
 
   /**

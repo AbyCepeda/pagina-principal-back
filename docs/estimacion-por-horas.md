@@ -30,6 +30,6 @@ Ejemplo: una landing con estos ajustes y sin costos externos produce 29–63 h d
 
 No incluye impuestos, mensualidades ni mantenimiento. Facturación fiscal, hardware especializado, tiempo real u operación offline requieren detalle adicional.
 
-El cotizador público de paquetes conserva sus precios actuales en esta etapa. Los análisis históricos no se reescriben; los nuevos análisis de contactos expresan esfuerzo en horas cuando no se indica disponibilidad. El desglose editable del planeador no se guarda en la base de datos: puede copiarse con el análisis. No se necesita migración.
+El cotizador público usa ahora este mismo motor con el alcance de cada paquete y los ajustes comerciales definidos en `src/contact/quote-estimator.ts`. Consulta [Paquetes y cotizador](paquetes-y-cotizador.md). Los análisis históricos no se reescriben; los nuevos análisis de contactos expresan esfuerzo en horas cuando no se indica disponibilidad. El desglose editable del planeador no se guarda en la base de datos: puede copiarse con el análisis. Las nuevas solicitudes del cotizador sí guardan el alcance y el desglose dentro de `quoteSnapshot`. No se necesita migración.
 
-Para calibrar: registrar por proyecto horas estimadas frente a horas reales por tarea, revisar desvíos y actualizar el catálogo/versionado. Confirmar antes qué incluye cada paquete para conectarlo al cotizador público sin duplicar extras.
+Para calibrar: registrar por proyecto horas estimadas frente a horas reales por tarea, revisar desvíos y actualizar el catálogo/versionado.
