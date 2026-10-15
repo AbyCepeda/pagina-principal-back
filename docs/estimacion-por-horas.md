@@ -33,3 +33,5 @@ No incluye impuestos, mensualidades ni mantenimiento. Facturación fiscal, hardw
 El cotizador público usa ahora este mismo motor con el alcance de cada paquete y los ajustes comerciales definidos en `src/contact/quote-estimator.ts`. Consulta [Paquetes y cotizador](paquetes-y-cotizador.md). Los análisis históricos no se reescriben; los nuevos análisis de contactos expresan esfuerzo en horas cuando no se indica disponibilidad. El desglose editable del planeador no se guarda en la base de datos: puede copiarse con el análisis. Las nuevas solicitudes del cotizador sí guardan el alcance y el desglose dentro de `quoteSnapshot`. No se necesita migración.
 
 Para calibrar: registrar por proyecto horas estimadas frente a horas reales por tarea, revisar desvíos y actualizar el catálogo/versionado.
+
+Para empezar sin históricos, usar la [plantilla de registro de horas](registro-de-horas.md). Separa el trabajo efectivo, las ampliaciones y las esperas; conserva la estimación original para compararla al terminar. Completar la plantilla no modifica automáticamente las tarifas ni los rangos públicos.
