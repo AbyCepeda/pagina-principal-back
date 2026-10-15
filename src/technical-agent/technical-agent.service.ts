@@ -10,6 +10,7 @@ export class TechnicalAgentService {
       budget:
         analyzeTechnicalIdeaDto.budget?.trim() || 'Presupuesto no definido',
       message: analyzeTechnicalIdeaDto.idea.trim(),
+      estimation: analyzeTechnicalIdeaDto.estimation ?? undefined,
     });
 
     return {

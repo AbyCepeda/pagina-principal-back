@@ -1,9 +1,12 @@
 import { createRequirementMatcher } from './requirement-matcher';
+import { estimateEffort } from './effort-estimator';
+import type { EstimationSettings } from './effort-estimator';
 
 export type TechnicalAnalysisInput = {
   projectType: string;
   budget: string;
   message: string;
+  estimation?: EstimationSettings;
 };
 
 export type TechnicalAnalysisResult = {
@@ -16,6 +19,7 @@ export type TechnicalAnalysisResult = {
   technicalSuggestedScreens: string[];
   technicalChecklist: string[];
   technicalNotes: string;
+  effortEstimate: ReturnType<typeof estimateEffort>;
 };
 
 export function buildTechnicalAnalysis(
@@ -296,14 +300,12 @@ export function buildTechnicalAnalysis(
           ? 'Media'
           : 'Alta';
 
-  const technicalEstimatedTime =
-    moduleCount === 0
+  const effortEstimate = estimateEffort(Array.from(modules), input.estimation);
+  const technicalEstimatedTime = effortEstimate.weeks
+    ? `${effortEstimate.weeks.min} a ${effortEstimate.weeks.max} semanas según disponibilidad`
+    : moduleCount === 0
       ? 'Por definir al confirmar el alcance'
-      : technicalDifficulty === 'Baja'
-        ? '1 a 2 semanas para prototipo'
-        : technicalDifficulty === 'Media'
-          ? '3 a 5 semanas para prototipo funcional'
-          : '6 a 8 semanas para primera versión estable';
+      : `${effortEstimate.totalHours.min} a ${effortEstimate.totalHours.max} horas; semanas por definir según disponibilidad`;
 
   const platformType = modules.has('Aplicación móvil') ? 'móvil/web' : 'web';
 
@@ -327,5 +329,6 @@ export function buildTechnicalAnalysis(
     technicalSuggestedScreens: Array.from(screens),
     technicalChecklist: Array.from(checklist),
     technicalNotes,
+    effortEstimate,
   };
 }
