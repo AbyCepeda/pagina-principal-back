@@ -159,6 +159,48 @@ describe('Contact workflows after service separation', () => {
       },
     });
   });
+  it.each(['   ', ' a ', '', 42, 'x'.repeat(2001)])(
+    'rejects an invalid comment before writing: %p',
+    async (comment) => {
+      await request(app.getHttpServer())
+        .post('/contact/11/comments')
+        .set('Authorization', token(1))
+        .send({ message: comment })
+        .expect(400);
+      expect(prisma.contactMessageComment.create).not.toHaveBeenCalled();
+      expect(prisma.contactMessage.update).not.toHaveBeenCalled();
+    },
+  );
+  it('accepts a comment at the 2000-character limit', async () => {
+    await request(app.getHttpServer())
+      .post('/contact/11/comments')
+      .set('Authorization', token(1))
+      .send({ message: 'x'.repeat(2000) })
+      .expect(201);
+    expect(prisma.contactMessageComment.create).toHaveBeenCalledTimes(1);
+  });
+  it('keeps the public reply and its date untouched when only notes change', async () => {
+    await request(app.getHttpServer())
+      .patch('/contact/11')
+      .set('Authorization', token(2))
+      .send({ adminNotes: '  Nota interna  ' })
+      .expect(200);
+    expect(prisma.contactMessage.update).toHaveBeenCalledWith({
+      where: { id: 11 },
+      data: { adminNotes: 'Nota interna' },
+    });
+  });
+  it('forbids the owner from changing administrative follow-up', async () => {
+    await request(app.getHttpServer())
+      .patch('/contact/11')
+      .set('Authorization', token(1))
+      .send({
+        status: ContactStatus.CLOSED,
+        adminPublicReply: 'Falsa respuesta',
+      })
+      .expect(403);
+    expect(prisma.contactMessage.update).not.toHaveBeenCalled();
+  });
   it('returns 404 for missing conversations', async () => {
     prisma.contactMessage.findUnique.mockResolvedValueOnce(null);
     await request(app.getHttpServer())
