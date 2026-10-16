@@ -1,8 +1,35 @@
-# Página Principal Back
+# CepedaSoftware · API de cotización y seguimiento
 
 Backend desarrollado con **NestJS**, **Prisma** y **PostgreSQL** para una landing profesional con panel administrativo, autenticación, gestión de contenido y seguimiento de mensajes de contacto.
 
 Este proyecto forma parte de un portafolio profesional y también funciona como base reutilizable para crear páginas web o sistemas administrativos para clientes.
+
+## Qué demuestra este proyecto
+
+Una solicitud recorre un flujo de negocio: selección de paquete, estimación,
+registro, revisión administrativa y conversación con el usuario. El servidor
+calcula los importes, aplica permisos y conserva el desglose original.
+
+Proyecto personal de Abimael Cepeda que complementa su experiencia en aplicaciones
+internas e integración de sistemas. No se presenta como un producto contratado
+por una empresa.
+
+[Frontend](https://github.com/AbyCepeda/pagina-principal) ·
+[Caso de estudio](https://github.com/AbyCepeda/pagina-principal/blob/main/docs/presentacion-portafolio.md)
+
+### Decisiones técnicas
+
+- API modular, con DTOs de entrada y guards de autenticación y roles.
+- Prisma y PostgreSQL, con base local opcional mediante Docker Compose.
+- Cotizador y planeador comparten un motor de esfuerzo por tareas.
+- Cada solicitud cotizada guarda un snapshot de importes y supuestos.
+- El seguimiento separa notas internas, respuesta pública y conversación.
+- Jest y Supertest verifican contratos HTTP; Swagger documenta la API.
+
+El planeador técnico usa reglas y catálogos; no es un modelo de lenguaje entrenado
+ni una conexión a un proveedor de IA. Las tarifas y horas son provisionales.
+La verificación de correo está pendiente y las solicitudes se vinculan por correo.
+Las pruebas HTTP usan Prisma simulado, no una base de datos real.
 
 ## Tecnologías utilizadas
 
@@ -266,15 +293,17 @@ Ejemplo de selección en una solicitud de contacto:
 }
 ```
 
-Las tarifas mantienen los importes anteriores. Los paquetes personalizados
-conservan la tarifa base por defecto de $8,000 a $15,000 MXN. Los cálculos
-guardados son orientativos, sujetos a la definición final del alcance.
-El frontend obtiene las tarifas y extras de `GET /contact/quote-catalog`, sin
-autenticación, y utiliza ese catálogo para la vista previa. No conserva tarifas
-fijas propias. Si la consulta falla, permite reintentar o continuar sin paquete
-y bloquea el envío de una cotización hasta cargar el catálogo. El servidor
-recalcula al guardar y conserva la autoridad sobre los importes. Despliega
-ambos cambios juntos porque el contrato de entrada cambió.
+El frontend obtiene el catálogo de `GET /contact/quote-catalog` y solicita la
+vista previa a `POST /contact/quote-preview`, sin autenticación. No conserva
+tarifas fijas propias. Si la consulta falla, permite reintentar o continuar sin
+paquete y bloquea el envío de una cotización pendiente. El servidor recalcula
+al guardar y conserva la autoridad sobre los importes.
+
+Los supuestos iniciales son 300 MXN/h, 20 h/semana y 15% de reserva: no son
+tarifas de mercado ni tiempos calibrados. Los paquetes personalizados sin alcance
+registrado quedan con precio y plazo por definir. Los registros históricos
+conservan sus importes. Consulta [Paquetes y cotizador](docs/paquetes-y-cotizador.md)
+y [Estimación por horas](docs/estimacion-por-horas.md).
 
 ## Pruebas con Jest y Supertest
 
@@ -361,7 +390,14 @@ DELETE /users/:id
 ```txt
 POST /contact
 GET /contact
-GET /contact/unread/count
+GET /contact/unread-count
+GET /contact/quote-catalog
+POST /contact/quote-preview
+GET /contact/my-messages
+GET /contact/comments/unread-count
+GET /contact/:id/comments
+POST /contact/:id/comments
+POST /contact/:id/technical-analysis
 GET /contact/:id
 PATCH /contact/:id
 PATCH /contact/:id/read
