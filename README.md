@@ -14,7 +14,7 @@ Proyecto personal de Abimael Cepeda que complementa su experiencia en aplicacion
 internas e integración de sistemas. No se presenta como un producto contratado
 por una empresa.
 
-[Frontend](https://github.com/AbyCepeda/pagina-principal) ·
+[Frontend y guía para levantar ambas partes](https://github.com/AbyCepeda/pagina-principal#cepedasoftware--frontend) ·
 [Caso de estudio](https://github.com/AbyCepeda/pagina-principal/blob/main/docs/presentacion-portafolio.md)
 
 ### Decisiones técnicas
