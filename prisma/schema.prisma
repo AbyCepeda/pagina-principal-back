@@ -101,10 +101,53 @@ model User {
   email               String   @unique
   password            String
   role                Role     @default(USER)
+  adminProfileId      Int?
   projectRequestLimit Int      @default(3)
   isActive            Boolean  @default(true)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
+
+  adminProfile AdminProfile? @relation(fields: [adminProfileId], references: [id], onDelete: Restrict)
+
+  @@index([adminProfileId])
+}
+
+/// Perfil configurable del personal administrativo (p. ej. vendedor o gerente).
+/// El rol ADMIN/USER existente sigue distinguiendo personal de clientes.
+model AdminProfile {
+  id           Int      @id @default(autoincrement())
+  name         String   @unique
+  slug         String   @unique
+  description  String?
+  isSystem     Boolean  @default(false)
+  isSuperAdmin Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  users       User[]
+  permissions AdminProfilePermission[]
+}
+
+/// Catálogo estable de permisos comprobados por el backend.
+model Permission {
+  id          Int      @id @default(autoincrement())
+  key         String   @unique
+  name        String
+  module      String
+  description String?
+
+  profiles AdminProfilePermission[]
+}
+
+/// Relación muchos a muchos entre perfiles administrativos y permisos.
+model AdminProfilePermission {
+  profileId    Int
+  permissionId Int
+  profile      AdminProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  permission   Permission   @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([profileId, permissionId])
+  @@index([permissionId])
 }
 
 model Project {

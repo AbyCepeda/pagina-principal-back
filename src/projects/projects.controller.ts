@@ -19,6 +19,8 @@ import { UpdateProjectDto } from './dto/update-project.dto';
 import { ProjectsService } from './projects.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { CurrentUser as CurrentUserType } from '../auth/decorators/current-user.decorator';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
+import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 
 @ApiTags('Proyectos')
 @Controller('projects')
@@ -57,8 +59,9 @@ export class ProjectsController {
    * Ruta privada.
    * Solo ADMIN puede ver todos los proyectos, activos e inactivos.
    */
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Roles(Role.ADMIN)
+  @RequirePermissions('projects:read')
   @ApiEndpoint({ summary: 'Listar proyectos', access: 'admin', status: 200 })
   @Get()
   findAll() {
@@ -69,8 +72,9 @@ export class ProjectsController {
    * Ruta privada.
    * Solo ADMIN puede crear proyectos.
    */
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Roles(Role.ADMIN)
+  @RequirePermissions('projects:create')
   @ApiEndpoint({
     summary: 'Crear un registro de proyectos',
     access: 'admin',
@@ -88,8 +92,9 @@ export class ProjectsController {
    * Ruta privada.
    * Solo ADMIN puede editar proyectos.
    */
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Roles(Role.ADMIN)
+  @RequirePermissions('projects:update')
   @ApiEndpoint({
     summary: 'Actualizar un registro de proyectos',
     access: 'admin',
@@ -109,8 +114,9 @@ export class ProjectsController {
    * Ruta privada.
    * Solo ADMIN puede eliminar proyectos.
    */
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Roles(Role.ADMIN)
+  @RequirePermissions('projects:delete')
   @ApiEndpoint({
     summary: 'Eliminar un registro de proyectos',
     access: 'admin',

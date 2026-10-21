@@ -92,6 +92,18 @@ export class AuthService {
           email: user.email,
           role: user.role,
           isActive: user.isActive,
+          adminProfile: user.adminProfile
+            ? {
+                id: user.adminProfile.id,
+                name: user.adminProfile.name,
+                slug: user.adminProfile.slug,
+                isSuperAdmin: user.adminProfile.isSuperAdmin,
+              }
+            : null,
+          permissions:
+            user.adminProfile?.permissions.map(
+              (profilePermission) => profilePermission.permission.key,
+            ) ?? [],
         },
       },
     };
@@ -119,7 +131,21 @@ export class AuthService {
     return {
       success: true,
       message: 'Usuario autenticado',
-      data: user,
+      data: {
+        ...user,
+        adminProfile: user.adminProfile
+          ? {
+              id: user.adminProfile.id,
+              name: user.adminProfile.name,
+              slug: user.adminProfile.slug,
+              isSuperAdmin: user.adminProfile.isSuperAdmin,
+            }
+          : null,
+        permissions:
+          user.adminProfile?.permissions.map(
+            (profilePermission) => profilePermission.permission.key,
+          ) ?? [],
+      },
     };
   }
 

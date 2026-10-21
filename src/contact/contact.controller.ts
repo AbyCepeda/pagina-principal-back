@@ -20,6 +20,8 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
+import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { ContactService } from './contact.service';
 import { getQuoteCatalog } from './quote-estimator';
 import { PreviewQuoteDto } from './dto/preview-quote.dto';
@@ -82,7 +84,7 @@ export class ContactController {
    *
    * Permite que un usuario autenticado vea sus propias solicitudes.
    */
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
   @ApiEndpoint({
     summary: 'Consultar mis solicitudes',
     access: 'authenticated',
@@ -98,13 +100,14 @@ export class ContactController {
    *
    * Devuelve cuántos comentarios nuevos tiene el usuario autenticado.
    */
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
   @ApiEndpoint({
     summary: 'Contar comentarios nuevos para el usuario',
     access: 'authenticated',
     status: 200,
   })
   @Get('comments/unread-count')
+  @RequirePermissions('messages:read')
   countUnreadComments(@CurrentUser() user: CurrentUserPayload) {
     return this.commentsService.countUnreadComments(user);
   }
@@ -114,8 +117,9 @@ export class ContactController {
    *
    * Cuenta mensajes no leídos.
    */
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Roles(Role.ADMIN)
+  @RequirePermissions('messages:read')
   @ApiEndpoint({
     summary: 'Contar solicitudes sin leer',
     access: 'admin',
@@ -131,8 +135,9 @@ export class ContactController {
    *
    * Lista mensajes con paginación, búsqueda y filtros.
    */
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Roles(Role.ADMIN)
+  @RequirePermissions('messages:read')
   @ApiEndpoint({
     summary: 'Listar y filtrar solicitudes',
     access: 'admin',
@@ -148,7 +153,7 @@ export class ContactController {
    *
    * Obtiene los comentarios de una solicitud.
    */
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
   @ApiEndpoint({
     summary: 'Consultar comentarios de una solicitud accesible',
     access: 'authenticated',
@@ -156,6 +161,7 @@ export class ContactController {
   })
   @ApiNotFoundResponse({ description: 'Registro no encontrado.' })
   @Get(':id/comments')
+  @RequirePermissions('messages:read')
   findComments(
     @Param('id') id: string,
     @CurrentUser() user: CurrentUserPayload,
@@ -168,7 +174,7 @@ export class ContactController {
    *
    * Agrega un comentario a una solicitud.
    */
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
   @ApiEndpoint({
     summary: 'Comentar una solicitud accesible',
     access: 'authenticated',
@@ -176,6 +182,7 @@ export class ContactController {
   })
   @ApiNotFoundResponse({ description: 'Registro no encontrado.' })
   @Post(':id/comments')
+  @RequirePermissions('messages:reply')
   createComment(
     @Param('id') id: string,
     @Body() createContactCommentDto: CreateContactCommentDto,
@@ -193,8 +200,9 @@ export class ContactController {
    *
    * Genera un análisis técnico automático de la solicitud.
    */
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Roles(Role.ADMIN)
+  @RequirePermissions('messages:analyze')
   @ApiEndpoint({
     summary: 'Generar el análisis técnico de una solicitud',
     access: 'admin',
@@ -214,8 +222,9 @@ export class ContactController {
    *
    * Obtiene un mensaje por ID.
    */
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Roles(Role.ADMIN)
+  @RequirePermissions('messages:read')
   @ApiEndpoint({
     summary: 'Consultar una solicitud',
     access: 'admin',
@@ -233,8 +242,9 @@ export class ContactController {
    * Actualiza seguimiento, estado, prioridad, notas internas
    * y respuesta visible para el usuario.
    */
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Roles(Role.ADMIN)
+  @RequirePermissions('messages:update')
   @ApiEndpoint({
     summary: 'Actualizar el seguimiento de una solicitud',
     access: 'admin',
@@ -259,8 +269,9 @@ export class ContactController {
    *
    * Marca un mensaje como leído.
    */
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Roles(Role.ADMIN)
+  @RequirePermissions('messages:update')
   @ApiEndpoint({
     summary: 'Marcar una solicitud como leída',
     access: 'admin',
@@ -277,8 +288,9 @@ export class ContactController {
    *
    * Elimina un mensaje.
    */
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Roles(Role.ADMIN)
+  @RequirePermissions('messages:delete')
   @ApiEndpoint({
     summary: 'Eliminar una solicitud',
     access: 'admin',

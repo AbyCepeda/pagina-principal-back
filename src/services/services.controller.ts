@@ -21,6 +21,8 @@ import { UpdateServiceDto } from './dto/update-service.dto';
 import { ServicesService } from './services.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { CurrentUser as CurrentUserType } from '../auth/decorators/current-user.decorator';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
+import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 
 @ApiTags('Servicios')
 @Controller('services')
@@ -48,8 +50,9 @@ export class ServicesController {
    * Soporta paginación:
    * /services?page=1&limit=10
    */
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Roles(Role.ADMIN)
+  @RequirePermissions('services:read')
   @ApiEndpoint({ summary: 'Listar servicios', access: 'admin', status: 200 })
   @Get()
   findAll(@Query() query: GetServicesQueryDto) {
@@ -74,8 +77,9 @@ export class ServicesController {
    * Ruta privada.
    * Solo ADMIN puede crear servicios.
    */
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Roles(Role.ADMIN)
+  @RequirePermissions('services:create')
   @ApiEndpoint({
     summary: 'Crear un registro de servicios',
     access: 'admin',
@@ -93,8 +97,9 @@ export class ServicesController {
    * Ruta privada.
    * Solo ADMIN puede editar servicios.
    */
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Roles(Role.ADMIN)
+  @RequirePermissions('services:update')
   @ApiEndpoint({
     summary: 'Actualizar un registro de servicios',
     access: 'admin',
@@ -114,8 +119,9 @@ export class ServicesController {
    * Ruta privada.
    * Solo ADMIN puede eliminar servicios.
    */
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Roles(Role.ADMIN)
+  @RequirePermissions('services:delete')
   @ApiEndpoint({
     summary: 'Eliminar un registro de servicios',
     access: 'admin',

@@ -25,8 +25,34 @@ describe('JwtStrategy', () => {
       id: 1,
       email: 'current@example.com',
       role: Role.USER,
+      permissions: [],
+      isSuperAdmin: false,
     });
     expect(findById).toHaveBeenCalledWith(1);
+  });
+
+  it('loads current profile permissions from the database user', async () => {
+    findById.mockResolvedValue({
+      id: 1,
+      email: 'admin@example.com',
+      role: Role.ADMIN,
+      isActive: true,
+      adminProfile: {
+        isSuperAdmin: false,
+        permissions: [
+          { permission: { key: 'projects:read' } },
+          { permission: { key: 'projects:update' } },
+        ],
+      },
+    });
+
+    await expect(strategy.validate(payload)).resolves.toEqual({
+      id: 1,
+      email: 'admin@example.com',
+      role: Role.ADMIN,
+      permissions: ['projects:read', 'projects:update'],
+      isSuperAdmin: false,
+    });
   });
 
   it.each([null, { id: 1, isActive: false }])(

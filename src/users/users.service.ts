@@ -10,6 +10,21 @@ import * as bcrypt from 'bcrypt';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { GetUsersQueryDto } from './dto/get-users-query.dto';
+import type { CurrentUser } from '../auth/decorators/current-user.decorator';
+
+const safeUserSelect = {
+  id: true,
+  name: true,
+  email: true,
+  role: true,
+  adminProfileId: true,
+  adminProfile: {
+    select: { id: true, name: true, slug: true, isSuperAdmin: true },
+  },
+  isActive: true,
+  createdAt: true,
+  updatedAt: true,
+} satisfies Prisma.UserSelect;
 
 @Injectable()
 export class UsersService {
@@ -27,6 +42,13 @@ export class UsersService {
     return this.prisma.user.findUnique({
       where: {
         email: email.trim().toLowerCase(),
+      },
+      include: {
+        adminProfile: {
+          include: {
+            permissions: { include: { permission: { select: { key: true } } } },
+          },
+        },
       },
     });
   }
@@ -47,6 +69,17 @@ export class UsersService {
         isActive: true,
         createdAt: true,
         updatedAt: true,
+        adminProfile: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            isSuperAdmin: true,
+            permissions: {
+              select: { permission: { select: { key: true } } },
+            },
+          },
+        },
       },
     });
   }
@@ -76,8 +109,9 @@ export class UsersService {
       email: string;
       password: string;
       role?: Role;
+      adminProfileId?: number;
     },
-    actorId?: number,
+    actor: CurrentUser,
   ) {
     try {
       const email = data.email.trim().toLowerCase();
@@ -89,37 +123,52 @@ export class UsersService {
       }
 
       const hashedPassword = await bcrypt.hash(data.password, 10);
+      const role = data.role ?? Role.USER;
+      let adminProfileId: number | null = null;
+      if (role === Role.ADMIN) {
+        if (
+          !actor.isSuperAdmin &&
+          !actor.permissions?.includes('users:assign-profile')
+        ) {
+          throw new BadRequestException(
+            'Tu perfil no puede asignar accesos administrativos.',
+          );
+        }
+        const profile = await this.resolveAdminProfile(data.adminProfileId);
+        this.assertProfileWithinActorPermissions(profile, actor);
+        adminProfileId = profile.id;
+      }
+
+      if (role === Role.USER && data.adminProfileId !== undefined) {
+        throw new BadRequestException(
+          'Las cuentas de cliente no pueden tener un perfil administrativo.',
+        );
+      }
 
       const user = await this.prisma.user.create({
         data: {
           name: data.name.trim(),
           email,
           password: hashedPassword,
-          role: data.role ?? Role.USER,
+          role,
+          adminProfileId,
           isActive: true,
         },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          role: true,
-          isActive: true,
-          createdAt: true,
-          updatedAt: true,
-        },
+        select: safeUserSelect,
       });
 
       await this.auditLogService.createLog({
         action: AuditLogAction.CREATE,
         module: 'Usuarios',
         description: `Se creó el usuario ${user.name} (${user.email}) con rol ${user.role}.`,
-        actorId,
+        actorId: actor.id,
         targetId: user.id,
         targetType: 'User',
         metadata: {
           userId: user.id,
           email: user.email,
-          role: user.role,
+          role: user.adminProfile?.name ?? user.role,
+          adminProfileId: user.adminProfileId,
           isActive: user.isActive,
         },
       });
@@ -127,6 +176,9 @@ export class UsersService {
       return user;
     } catch (error) {
       if (error instanceof ConflictException) {
+        throw error;
+      }
+      if (error instanceof BadRequestException) {
         throw error;
       }
 
@@ -167,15 +219,7 @@ export class UsersService {
           role: Role.USER,
           isActive: false,
         },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          role: true,
-          isActive: true,
-          createdAt: true,
-          updatedAt: true,
-        },
+        select: safeUserSelect,
       });
 
       return user;
@@ -186,7 +230,9 @@ export class UsersService {
 
       console.error('Error al registrar usuario público:', error);
 
-      throw new InternalServerErrorException('No se pudo registrar el usuario.');
+      throw new InternalServerErrorException(
+        'No se pudo registrar el usuario.',
+      );
     }
   }
 
@@ -237,15 +283,7 @@ export class UsersService {
           },
           skip,
           take: limit,
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            role: true,
-            isActive: true,
-            createdAt: true,
-            updatedAt: true,
-          },
+          select: safeUserSelect,
         }),
 
         this.prisma.user.count({
@@ -280,9 +318,9 @@ export class UsersService {
   /**
    * Actualiza el rol de un usuario.
    */
-  async updateRole(id: number, role: Role, currentUserId: number) {
+  async updateRole(id: number, role: Role, currentUser: CurrentUser) {
     try {
-      if (id === currentUserId) {
+      if (id === currentUser.id) {
         throw new BadRequestException(
           'No puedes cambiar tu propio rol desde esta pantalla.',
         );
@@ -298,34 +336,36 @@ export class UsersService {
         throw new NotFoundException('Usuario no encontrado.');
       }
 
+      let adminProfileId: number | null = null;
+      if (role === Role.ADMIN) {
+        if (!currentUser.isSuperAdmin) {
+          throw new BadRequestException(
+            'Solo un administrador principal puede asignar el perfil completo.',
+          );
+        }
+        adminProfileId = (await this.resolveAdminProfile()).id;
+      }
       const updatedUser = await this.prisma.user.update({
         where: {
           id,
         },
         data: {
           role,
+          adminProfileId,
         },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          role: true,
-          isActive: true,
-          createdAt: true,
-          updatedAt: true,
-        },
+        select: safeUserSelect,
       });
 
       await this.auditLogService.createLog({
         action: AuditLogAction.ROLE_CHANGE,
         module: 'Usuarios',
-        description: `Se cambió el rol de ${updatedUser.name} (${updatedUser.email}) a ${updatedUser.role}.`,
-        actorId: currentUserId,
+        description: `Se cambió el perfil de ${updatedUser.name} (${updatedUser.email}) a ${updatedUser.adminProfile?.name ?? 'Cliente'}.`,
+        actorId: currentUser.id,
         targetId: updatedUser.id,
         targetType: 'User',
         metadata: {
           previousRole: user.role,
-          newRole: updatedUser.role,
+          newRole: updatedUser.adminProfile?.name ?? 'Cliente',
         },
       });
 
@@ -346,6 +386,61 @@ export class UsersService {
 
       throw new InternalServerErrorException('No se pudo actualizar el rol.');
     }
+  }
+
+  async assignAdminProfile(
+    id: number,
+    adminProfileId: number,
+    currentUser: CurrentUser,
+  ) {
+    if (id === currentUser.id) {
+      throw new BadRequestException('No puedes cambiar tu propio perfil.');
+    }
+
+    const [user, profile] = await Promise.all([
+      this.prisma.user.findUnique({
+        where: { id },
+        include: { adminProfile: { select: { id: true, name: true } } },
+      }),
+      this.prisma.adminProfile.findUnique({
+        where: { id: adminProfileId },
+        include: { permissions: { include: { permission: { select: { key: true } } } }, },
+      }),
+    ]);
+
+    if (!user) throw new NotFoundException('Usuario no encontrado.');
+    if (!profile) throw new NotFoundException('Perfil no encontrado.');
+    this.assertProfileWithinActorPermissions(profile, currentUser);
+    if (profile.isSuperAdmin && !currentUser.isSuperAdmin) {
+      throw new BadRequestException(
+        'Solo el administrador principal puede asignar ese perfil.',
+      );
+    }
+
+    const updatedUser = await this.prisma.user.update({
+      where: { id },
+      data: { role: Role.ADMIN, adminProfileId },
+      select: safeUserSelect,
+    });
+
+    await this.auditLogService.createLog({
+      action: AuditLogAction.ROLE_CHANGE,
+      module: 'Usuarios',
+      description: `Se asignó el perfil «${profile.name}» a ${user.name} (${user.email}).`,
+      actorId: currentUser.id,
+      targetId: user.id,
+      targetType: 'User',
+      metadata: {
+        previousProfile: user.adminProfile?.name ?? null,
+        newProfile: profile.name,
+      },
+    });
+
+    return {
+      success: true,
+      message: 'Perfil asignado correctamente.',
+      data: updatedUser,
+    };
   }
 
   /**
@@ -484,9 +579,7 @@ export class UsersService {
   async remove(id: number, currentUserId: number) {
     try {
       if (id === currentUserId) {
-        throw new BadRequestException(
-          'No puedes eliminar tu propio usuario.',
-        );
+        throw new BadRequestException('No puedes eliminar tu propio usuario.');
       }
 
       const user = await this.prisma.user.findUnique({
@@ -543,8 +636,43 @@ export class UsersService {
 
       console.error('Error al eliminar usuario:', error);
 
-      throw new InternalServerErrorException(
-        'No se pudo eliminar el usuario.',
+      throw new InternalServerErrorException('No se pudo eliminar el usuario.');
+    }
+  }
+
+  private async resolveAdminProfile(profileId?: number) {
+    const profile = profileId
+      ? await this.prisma.adminProfile.findUnique({
+          where: { id: profileId },
+          include: { permissions: { include: { permission: { select: { key: true } } } } },
+        })
+      : await this.prisma.adminProfile.findUnique({
+          where: { slug: 'administrador' },
+          include: { permissions: { include: { permission: { select: { key: true } } } } },
+        });
+    if (!profile) {
+      throw new BadRequestException(
+        'No existe el perfil administrativo solicitado. Ejecuta la migración de perfiles primero.',
+      );
+    }
+    return profile;
+  }
+
+  private assertProfileWithinActorPermissions(
+    profile: {
+      isSuperAdmin: boolean;
+      permissions: { permission: { key: string } }[];
+    },
+    actor: CurrentUser,
+  ) {
+    if (actor.isSuperAdmin) return;
+    const actorPermissions = new Set(actor.permissions ?? []);
+    if (
+      profile.isSuperAdmin ||
+      profile.permissions.some(({ permission }) => !actorPermissions.has(permission.key))
+    ) {
+      throw new BadRequestException(
+        'No puedes asignar un perfil con permisos que tu cuenta no tiene.',
       );
     }
   }

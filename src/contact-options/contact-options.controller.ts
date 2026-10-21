@@ -21,6 +21,8 @@ import { UpdateContactOptionDto } from './dto/update-contact-option.dto';
 import { CreateContactOptionDto } from './dto/create-contact-option.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { CurrentUser as CurrentUserType } from '../auth/decorators/current-user.decorator';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
+import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 
 @ApiTags('Opciones de contacto')
 @Controller('contact-options')
@@ -43,8 +45,9 @@ export class ContactOptionsController {
   /**
    * Lista opciones para admin.
    */
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Roles(Role.ADMIN)
+  @RequirePermissions('contact-options:read')
   @ApiEndpoint({
     summary: 'Listar opciones de contacto',
     access: 'admin',
@@ -58,8 +61,9 @@ export class ContactOptionsController {
   /**
    * Consulta detalle de una opción.
    */
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Roles(Role.ADMIN)
+  @RequirePermissions('contact-options:read')
   @ApiEndpoint({
     summary: 'Consultar un registro de opciones de contacto',
     access: 'admin',
@@ -74,8 +78,9 @@ export class ContactOptionsController {
   /**
    * Crea una opción.
    */
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Roles(Role.ADMIN)
+  @RequirePermissions('contact-options:create')
   @ApiEndpoint({
     summary: 'Crear un registro de opciones de contacto',
     access: 'admin',
@@ -92,8 +97,9 @@ export class ContactOptionsController {
   /**
    * Actualiza una opción.
    */
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Roles(Role.ADMIN)
+  @RequirePermissions('contact-options:update')
   @ApiEndpoint({
     summary: 'Actualizar un registro de opciones de contacto',
     access: 'admin',
@@ -116,8 +122,9 @@ export class ContactOptionsController {
   /**
    * Elimina una opción.
    */
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Roles(Role.ADMIN)
+  @RequirePermissions('contact-options:delete')
   @ApiEndpoint({
     summary: 'Eliminar un registro de opciones de contacto',
     access: 'admin',

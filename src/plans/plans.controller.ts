@@ -21,6 +21,8 @@ import { UpdatePlanDto } from './dto/update-plan.dto';
 import { PlansService } from './plans.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { CurrentUser as CurrentUserType } from '../auth/decorators/current-user.decorator';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
+import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 
 @ApiTags('Planes')
 @Controller('plans')
@@ -37,8 +39,9 @@ export class PlansController {
     return this.plansService.findPublic();
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Roles(Role.ADMIN)
+  @RequirePermissions('plans:create')
   @ApiEndpoint({
     summary: 'Crear un registro de planes',
     access: 'admin',
@@ -52,16 +55,18 @@ export class PlansController {
     return this.plansService.create(createPlanDto, user.id);
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Roles(Role.ADMIN)
+  @RequirePermissions('plans:read')
   @ApiEndpoint({ summary: 'Listar planes', access: 'admin', status: 200 })
   @Get()
   findAll(@Query() query: GetPlansQueryDto) {
     return this.plansService.findAll(query);
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Roles(Role.ADMIN)
+  @RequirePermissions('plans:read')
   @ApiEndpoint({
     summary: 'Consultar un registro de planes',
     access: 'admin',
@@ -73,8 +78,9 @@ export class PlansController {
     return this.plansService.findOne(Number(id));
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Roles(Role.ADMIN)
+  @RequirePermissions('plans:update')
   @ApiEndpoint({
     summary: 'Actualizar un registro de planes',
     access: 'admin',
@@ -90,8 +96,9 @@ export class PlansController {
     return this.plansService.update(Number(id), updatePlanDto, user.id);
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Roles(Role.ADMIN)
+  @RequirePermissions('plans:delete')
   @ApiEndpoint({
     summary: 'Eliminar un registro de planes',
     access: 'admin',

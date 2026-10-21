@@ -5,6 +5,8 @@ export type CurrentUser = {
   id: number;
   email: string;
   role: Role;
+  permissions?: string[];
+  isSuperAdmin?: boolean;
 };
 
 export const CurrentUser = createParamDecorator(

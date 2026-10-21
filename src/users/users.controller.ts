@@ -17,24 +17,22 @@ import {
 } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import type { CurrentUser as CurrentUserPayload } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
+import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { CreateUserDto } from './dto/create-user.dto';
 import { GetUsersQueryDto } from './dto/get-users-query.dto';
 import { UpdateUserRoleDto } from './dto/update-user-role.dto';
 import { UpdateUserStatusDto } from './dto/update-user-status.dto';
 import { UsersService } from './users.service';
-
-type CurrentUserPayload = {
-  id: number;
-  email: string;
-  role: Role;
-};
+import { AssignAdminProfileDto } from '../admin-profiles/dto/assign-admin-profile.dto';
 
 @ApiTags('Usuarios')
 @Controller('users')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Roles(Role.ADMIN)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
@@ -51,11 +49,12 @@ export class UsersController {
   })
   @ApiConflictResponse({ description: 'El correo ya está registrado.' })
   @Post()
+  @RequirePermissions('users:create')
   async create(
     @Body() createUserDto: CreateUserDto,
     @CurrentUser() currentUser: CurrentUserPayload,
   ) {
-    const user = await this.usersService.create(createUserDto, currentUser.id);
+    const user = await this.usersService.create(createUserDto, currentUser);
 
     return {
       success: true,
@@ -73,6 +72,7 @@ export class UsersController {
     status: 200,
   })
   @Get()
+  @RequirePermissions('users:read')
   findAll(@Query() query: GetUsersQueryDto) {
     return this.usersService.findAll(query);
   }
@@ -87,6 +87,7 @@ export class UsersController {
   })
   @ApiNotFoundResponse({ description: 'Registro no encontrado.' })
   @Patch(':id/role')
+  @RequirePermissions('users:assign-profile')
   updateRole(
     @Param('id') id: string,
     @Body() updateUserRoleDto: UpdateUserRoleDto,
@@ -95,7 +96,26 @@ export class UsersController {
     return this.usersService.updateRole(
       Number(id),
       updateUserRoleDto.role,
-      currentUser.id,
+      currentUser,
+    );
+  }
+
+  @ApiEndpoint({
+    summary: 'Asignar un perfil administrativo a un usuario',
+    access: 'admin',
+    status: 200,
+  })
+  @Patch(':id/profile')
+  @RequirePermissions('users:assign-profile')
+  assignProfile(
+    @Param('id') id: string,
+    @Body() dto: AssignAdminProfileDto,
+    @CurrentUser() currentUser: CurrentUserPayload,
+  ) {
+    return this.usersService.assignAdminProfile(
+      Number(id),
+      dto.adminProfileId,
+      currentUser,
     );
   }
 
@@ -109,6 +129,7 @@ export class UsersController {
   })
   @ApiNotFoundResponse({ description: 'Registro no encontrado.' })
   @Patch(':id/status')
+  @RequirePermissions('users:update')
   updateStatus(
     @Param('id') id: string,
     @Body() updateUserStatusDto: UpdateUserStatusDto,
@@ -127,6 +148,7 @@ export class UsersController {
   @ApiEndpoint({ summary: 'Eliminar un usuario', access: 'admin', status: 200 })
   @ApiNotFoundResponse({ description: 'Registro no encontrado.' })
   @Delete(':id')
+  @RequirePermissions('users:delete')
   remove(
     @Param('id') id: string,
     @CurrentUser() currentUser: CurrentUserPayload,

@@ -5,10 +5,12 @@ import { Role } from '@prisma/client';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
+import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { AnalyzeTechnicalIdeaDto } from './dto/analyze-technical-idea.dto';
 import { TechnicalAgentService } from './technical-agent.service';
 
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Roles(Role.ADMIN)
 @ApiTags('Análisis técnico')
 @Controller('technical-agent')
@@ -21,6 +23,7 @@ export class TechnicalAgentController {
     status: 201,
   })
   @Post('analyze')
+  @RequirePermissions('technical-agent:use')
   analyzeIdea(@Body() analyzeTechnicalIdeaDto: AnalyzeTechnicalIdeaDto) {
     return this.technicalAgentService.analyzeIdea(analyzeTechnicalIdeaDto);
   }

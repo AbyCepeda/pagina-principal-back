@@ -9,6 +9,8 @@ import { UpdateLandingSectionDto } from './dto/update-landing-section.dto';
 import { LandingSectionsService } from './landing-sections.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { CurrentUser as CurrentUserType } from '../auth/decorators/current-user.decorator';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
+import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 
 @ApiTags('Secciones de landing')
 @Controller('landing-sections')
@@ -17,8 +19,9 @@ export class LandingSectionsController {
     private readonly landingSectionsService: LandingSectionsService,
   ) {}
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Roles(Role.ADMIN)
+  @RequirePermissions('landing-sections:read')
   @ApiEndpoint({
     summary: 'Listar las secciones de la landing',
     access: 'admin',
@@ -29,8 +32,9 @@ export class LandingSectionsController {
     return this.landingSectionsService.findAll();
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Roles(Role.ADMIN)
+  @RequirePermissions('landing-sections:update')
   @ApiEndpoint({
     summary: 'Actualizar una sección de la landing',
     access: 'admin',

@@ -7,6 +7,8 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  IsInt,
+  Min,
   MaxLength,
   MinLength,
 } from 'class-validator';
@@ -37,4 +39,9 @@ export class CreateUserDto {
   @IsOptional()
   @IsEnum(Role, { message: 'El rol debe ser USER o ADMIN.' })
   role?: Role;
+
+  @IsOptional()
+  @IsInt({ message: 'El perfil administrativo no es válido.' })
+  @Min(1)
+  adminProfileId?: number;
 }
