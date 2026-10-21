@@ -2,14 +2,19 @@ import {
   Injectable,
   InternalServerErrorException,
   NotFoundException,
-} from '@nestjs/common'
-import { PrismaService } from '../prisma/prisma.service'
-import { defaultLandingSections } from './landing-section.defaults'
-import { UpdateLandingSectionDto } from './dto/update-landing-section.dto'
+} from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import { defaultLandingSections } from './landing-section.defaults';
+import { UpdateLandingSectionDto } from './dto/update-landing-section.dto';
+import { AuditLogService } from '../audit-log/audit-log.service';
+import { AuditLogAction } from '@prisma/client';
 
 @Injectable()
 export class LandingSectionsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditLogService: AuditLogService,
+  ) {}
 
   async ensureDefaultSections() {
     try {
@@ -27,19 +32,19 @@ export class LandingSectionsService {
             create: section,
           }),
         ),
-      )
+      );
     } catch (error) {
-      console.error('Error al crear secciones por defecto:', error)
+      console.error('Error al crear secciones por defecto:', error);
 
       throw new InternalServerErrorException(
         'No se pudieron crear las secciones por defecto.',
-      )
+      );
     }
   }
 
   async findAll() {
     try {
-      await this.ensureDefaultSections()
+      await this.ensureDefaultSections();
 
       const sections = await this.prisma.landingSection.findMany({
         orderBy: [
@@ -50,24 +55,24 @@ export class LandingSectionsService {
             label: 'asc',
           },
         ],
-      })
+      });
 
       return {
         success: true,
         message: 'Secciones obtenidas correctamente.',
         data: sections,
-      }
+      };
     } catch (error) {
-      console.error('Error al obtener secciones:', error)
+      console.error('Error al obtener secciones:', error);
 
       throw new InternalServerErrorException(
         'No se pudieron obtener las secciones de la landing.',
-      )
+      );
     }
   }
 
   async findPublicSections() {
-    await this.ensureDefaultSections()
+    await this.ensureDefaultSections();
 
     return this.prisma.landingSection.findMany({
       where: {
@@ -81,19 +86,23 @@ export class LandingSectionsService {
           label: 'asc',
         },
       ],
-    })
+    });
   }
 
-  async update(key: string, updateLandingSectionDto: UpdateLandingSectionDto) {
+  async update(
+    key: string,
+    updateLandingSectionDto: UpdateLandingSectionDto,
+    actorId?: number,
+  ) {
     try {
       const section = await this.prisma.landingSection.findUnique({
         where: {
           key,
         },
-      })
+      });
 
       if (!section) {
-        throw new NotFoundException('La sección no existe.')
+        throw new NotFoundException('La sección no existe.');
       }
 
       const updatedSection = await this.prisma.landingSection.update({
@@ -125,23 +134,35 @@ export class LandingSectionsService {
               }
             : {}),
         },
-      })
+      });
+
+      await this.auditLogService.createLog({
+        action: AuditLogAction.UPDATE,
+        module: 'Landing',
+        description: `Se actualizó la sección «${updatedSection.label}».`,
+        actorId,
+        targetType: 'LandingSection',
+        metadata: {
+          key: updatedSection.key,
+          changedFields: Object.keys(updateLandingSectionDto),
+        },
+      });
 
       return {
         success: true,
         message: 'Sección actualizada correctamente.',
         data: updatedSection,
-      }
+      };
     } catch (error) {
       if (error instanceof NotFoundException) {
-        throw error
+        throw error;
       }
 
-      console.error('Error al actualizar sección:', error)
+      console.error('Error al actualizar sección:', error);
 
       throw new InternalServerErrorException(
         'No se pudo actualizar la sección.',
-      )
+      );
     }
   }
 }

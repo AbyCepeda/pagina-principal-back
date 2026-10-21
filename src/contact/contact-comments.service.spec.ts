@@ -1,9 +1,52 @@
-import { Prisma, Role } from '@prisma/client';
+import { AuditLogAction, Prisma, Role } from '@prisma/client';
 import type { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { PrismaService } from '../prisma/prisma.service';
 import { ContactCommentsService } from './contact-comments.service';
 
 describe('ContactCommentsService', () => {
+  it('audits replies sent by admins without copying the message body into metadata', async () => {
+    const createLog = jest.fn().mockResolvedValue(null);
+    const prisma = {
+      contactMessage: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 42,
+          email: 'client@example.com',
+        }),
+      },
+      user: {
+        findUnique: jest.fn().mockResolvedValue({
+          name: 'Admin',
+          email: 'admin@example.com',
+          role: Role.ADMIN,
+        }),
+      },
+      contactMessageComment: {
+        create: jest.fn().mockResolvedValue({ id: 91 }),
+      },
+    };
+    const service = new ContactCommentsService(
+      prisma as unknown as PrismaService,
+      { createLog } as never,
+    );
+
+    await service.createComment(
+      42,
+      { message: 'Respuesta privada para el cliente' },
+      { id: 1, email: 'admin@example.com', role: Role.ADMIN },
+    );
+
+    expect(createLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: AuditLogAction.UPDATE,
+        module: 'Mensajes',
+        actorId: 1,
+        targetId: 42,
+        targetType: 'ContactMessage',
+        metadata: { commentId: 91 },
+      }),
+    );
+  });
+
   it('marks the request and incoming user comments as read when admin opens it', async () => {
     const prisma = {
       contactMessage: {
@@ -30,6 +73,7 @@ describe('ContactCommentsService', () => {
     };
     const service = new ContactCommentsService(
       prisma as unknown as PrismaService,
+      { createLog: jest.fn() } as never,
     );
     const admin = {
       id: 1,

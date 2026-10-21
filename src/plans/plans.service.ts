@@ -5,7 +5,8 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { AuditLogAction, Prisma } from '@prisma/client';
+import { AuditLogService } from '../audit-log/audit-log.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePlanDto } from './dto/create-plan.dto';
 import { GetPlansQueryDto } from './dto/get-plans-query.dto';
@@ -13,7 +14,10 @@ import { UpdatePlanDto } from './dto/update-plan.dto';
 
 @Injectable()
 export class PlansService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditLogService: AuditLogService,
+  ) {}
 
   /**
    * Crea un paquete nuevo.
@@ -21,7 +25,7 @@ export class PlansService {
    * El slug sirve como identificador único estable.
    * Ejemplo: landing-basica, pagina-profesional.
    */
-  async create(createPlanDto: CreatePlanDto) {
+  async create(createPlanDto: CreatePlanDto, actorId?: number) {
     try {
       const slug = createPlanDto.slug.trim().toLowerCase();
 
@@ -48,6 +52,16 @@ export class PlansService {
           isActive: createPlanDto.isActive ?? true,
           sortOrder: createPlanDto.sortOrder ?? 0,
         },
+      });
+
+      await this.auditLogService.createLog({
+        action: AuditLogAction.CREATE,
+        module: 'Planes',
+        description: `Se creó el paquete «${plan.name}».`,
+        actorId,
+        targetId: plan.id,
+        targetType: 'Plan',
+        metadata: { name: plan.name, slug: plan.slug, isActive: plan.isActive },
       });
 
       return {
@@ -185,7 +199,7 @@ export class PlansService {
    * También permite actualizar el slug, validando que no se repita
    * con otro paquete existente.
    */
-  async update(id: number, updatePlanDto: UpdatePlanDto) {
+  async update(id: number, updatePlanDto: UpdatePlanDto, actorId?: number) {
     try {
       if (!Number.isInteger(id)) {
         throw new BadRequestException('Id inválido.');
@@ -253,6 +267,20 @@ export class PlansService {
         },
       });
 
+      await this.auditLogService.createLog({
+        action: AuditLogAction.UPDATE,
+        module: 'Planes',
+        description: `Se actualizó el paquete «${updatedPlan.name}».`,
+        actorId,
+        targetId: updatedPlan.id,
+        targetType: 'Plan',
+        metadata: {
+          name: updatedPlan.name,
+          slug: updatedPlan.slug,
+          changedFields: Object.keys(updatePlanDto),
+        },
+      });
+
       return {
         success: true,
         message: 'Paquete actualizado correctamente',
@@ -278,7 +306,7 @@ export class PlansService {
   /**
    * Elimina un paquete.
    */
-  async remove(id: number) {
+  async remove(id: number, actorId?: number) {
     try {
       if (!Number.isInteger(id)) {
         throw new BadRequestException('Id inválido.');
@@ -294,6 +322,16 @@ export class PlansService {
 
       await this.prisma.plan.delete({
         where: { id },
+      });
+
+      await this.auditLogService.createLog({
+        action: AuditLogAction.DELETE,
+        module: 'Planes',
+        description: `Se eliminó el paquete «${plan.name}».`,
+        actorId,
+        targetId: plan.id,
+        targetType: 'Plan',
+        metadata: { name: plan.name, slug: plan.slug },
       });
 
       return {

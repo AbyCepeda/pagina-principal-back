@@ -19,6 +19,8 @@ import { CreateServiceDto } from './dto/create-service.dto';
 import { GetServicesQueryDto } from './dto/get-services-query.dto';
 import { UpdateServiceDto } from './dto/update-service.dto';
 import { ServicesService } from './services.service';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import type { CurrentUser as CurrentUserType } from '../auth/decorators/current-user.decorator';
 
 @ApiTags('Servicios')
 @Controller('services')
@@ -80,8 +82,11 @@ export class ServicesController {
     status: 201,
   })
   @Post()
-  create(@Body() createServiceDto: CreateServiceDto) {
-    return this.servicesService.create(createServiceDto);
+  create(
+    @Body() createServiceDto: CreateServiceDto,
+    @CurrentUser() user: CurrentUserType,
+  ) {
+    return this.servicesService.create(createServiceDto, user.id);
   }
 
   /**
@@ -97,8 +102,12 @@ export class ServicesController {
   })
   @ApiNotFoundResponse({ description: 'Registro no encontrado.' })
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateServiceDto: UpdateServiceDto) {
-    return this.servicesService.update(Number(id), updateServiceDto);
+  update(
+    @Param('id') id: string,
+    @Body() updateServiceDto: UpdateServiceDto,
+    @CurrentUser() user: CurrentUserType,
+  ) {
+    return this.servicesService.update(Number(id), updateServiceDto, user.id);
   }
 
   /**
@@ -114,7 +123,7 @@ export class ServicesController {
   })
   @ApiNotFoundResponse({ description: 'Registro no encontrado.' })
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.servicesService.remove(Number(id));
+  remove(@Param('id') id: string, @CurrentUser() user: CurrentUserType) {
+    return this.servicesService.remove(Number(id), user.id);
   }
 }

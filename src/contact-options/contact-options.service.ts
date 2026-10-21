@@ -3,15 +3,19 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { AuditLogAction, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditLogService } from '../audit-log/audit-log.service';
 import { GetContactOptionsQueryDto } from './dto/get-contact-options-query.dto';
 import { UpdateContactOptionDto } from './dto/update-contact-option.dto';
 import { CreateContactOptionDto } from './dto/create-contact-option.dto';
 
 @Injectable()
 export class ContactOptionsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditLogService: AuditLogService,
+  ) {}
 
   /**
    * Crea una opción para los selects del formulario de contacto.
@@ -19,7 +23,10 @@ export class ContactOptionsService {
    * Si no se envía sortOrder, se asigna automáticamente
    * el siguiente orden disponible dentro del mismo tipo.
    */
-  async create(createContactOptionDto: CreateContactOptionDto) {
+  async create(
+    createContactOptionDto: CreateContactOptionDto,
+    actorId?: number,
+  ) {
     const lastOption = await this.prisma.contactOption.findFirst({
       where: {
         type: createContactOptionDto.type,
@@ -38,6 +45,20 @@ export class ContactOptionsService {
         value: createContactOptionDto.value.trim(),
         sortOrder: createContactOptionDto.sortOrder ?? nextSortOrder,
         isActive: createContactOptionDto.isActive ?? true,
+      },
+    });
+
+    await this.auditLogService.createLog({
+      action: AuditLogAction.CREATE,
+      module: 'Landing',
+      description: `Se creó la opción de contacto «${option.label}».`,
+      actorId,
+      targetId: option.id,
+      targetType: 'ContactOption',
+      metadata: {
+        label: option.label,
+        type: option.type,
+        isActive: option.isActive,
       },
     });
 
@@ -170,7 +191,11 @@ export class ContactOptionsService {
   /**
    * Actualiza una opción.
    */
-  async update(id: number, updateContactOptionDto: UpdateContactOptionDto) {
+  async update(
+    id: number,
+    updateContactOptionDto: UpdateContactOptionDto,
+    actorId?: number,
+  ) {
     const option = await this.prisma.contactOption.findUnique({
       where: {
         id,
@@ -218,6 +243,19 @@ export class ContactOptionsService {
       },
     });
 
+    await this.auditLogService.createLog({
+      action: AuditLogAction.UPDATE,
+      module: 'Landing',
+      description: `Se actualizó la opción de contacto «${updatedOption.label}».`,
+      actorId,
+      targetId: updatedOption.id,
+      targetType: 'ContactOption',
+      metadata: {
+        label: updatedOption.label,
+        changedFields: Object.keys(updateContactOptionDto),
+      },
+    });
+
     return {
       success: true,
       message: 'Opción actualizada correctamente',
@@ -231,7 +269,7 @@ export class ContactOptionsService {
    * Para uso normal es mejor desactivar,
    * pero dejamos delete disponible para admin.
    */
-  async remove(id: number) {
+  async remove(id: number, actorId?: number) {
     const option = await this.prisma.contactOption.findUnique({
       where: {
         id,
@@ -246,6 +284,16 @@ export class ContactOptionsService {
       where: {
         id,
       },
+    });
+
+    await this.auditLogService.createLog({
+      action: AuditLogAction.DELETE,
+      module: 'Landing',
+      description: `Se eliminó la opción de contacto «${option.label}».`,
+      actorId,
+      targetId: option.id,
+      targetType: 'ContactOption',
+      metadata: { label: option.label, type: option.type },
     });
 
     return {

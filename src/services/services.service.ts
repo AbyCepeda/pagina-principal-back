@@ -4,15 +4,20 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditLogService } from '../audit-log/audit-log.service';
+import { AuditLogAction } from '@prisma/client';
 import { CreateServiceDto } from './dto/create-service.dto';
 import { GetServicesQueryDto } from './dto/get-services-query.dto';
 import { UpdateServiceDto } from './dto/update-service.dto';
 
 @Injectable()
 export class ServicesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditLogService: AuditLogService,
+  ) {}
 
-  async create(createServiceDto: CreateServiceDto) {
+  async create(createServiceDto: CreateServiceDto, actorId?: number) {
     try {
       const service = await this.prisma.service.create({
         data: {
@@ -21,6 +26,16 @@ export class ServicesService {
           icon: createServiceDto.icon,
           isActive: createServiceDto.isActive ?? true,
         },
+      });
+
+      await this.auditLogService.createLog({
+        action: AuditLogAction.CREATE,
+        module: 'Servicios',
+        description: `Se creó el servicio «${service.title}».`,
+        actorId,
+        targetId: service.id,
+        targetType: 'Service',
+        metadata: { title: service.title, isActive: service.isActive },
       });
 
       return {
@@ -136,7 +151,11 @@ export class ServicesService {
     }
   }
 
-  async update(id: number, updateServiceDto: UpdateServiceDto) {
+  async update(
+    id: number,
+    updateServiceDto: UpdateServiceDto,
+    actorId?: number,
+  ) {
     try {
       const service = await this.prisma.service.findUnique({
         where: {
@@ -154,6 +173,19 @@ export class ServicesService {
         },
         data: {
           ...updateServiceDto,
+        },
+      });
+
+      await this.auditLogService.createLog({
+        action: AuditLogAction.UPDATE,
+        module: 'Servicios',
+        description: `Se actualizó el servicio «${updatedService.title}».`,
+        actorId,
+        targetId: updatedService.id,
+        targetType: 'Service',
+        metadata: {
+          title: updatedService.title,
+          changedFields: Object.keys(updateServiceDto),
         },
       });
 
@@ -175,7 +207,7 @@ export class ServicesService {
     }
   }
 
-  async remove(id: number) {
+  async remove(id: number, actorId?: number) {
     try {
       const service = await this.prisma.service.findUnique({
         where: {
@@ -191,6 +223,16 @@ export class ServicesService {
         where: {
           id,
         },
+      });
+
+      await this.auditLogService.createLog({
+        action: AuditLogAction.DELETE,
+        module: 'Servicios',
+        description: `Se eliminó el servicio «${deletedService.title}».`,
+        actorId,
+        targetId: deletedService.id,
+        targetType: 'Service',
+        metadata: { title: deletedService.title },
       });
 
       return {

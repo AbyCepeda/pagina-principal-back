@@ -17,6 +17,8 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { ProjectsService } from './projects.service';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import type { CurrentUser as CurrentUserType } from '../auth/decorators/current-user.decorator';
 
 @ApiTags('Proyectos')
 @Controller('projects')
@@ -75,8 +77,11 @@ export class ProjectsController {
     status: 201,
   })
   @Post()
-  create(@Body() createProjectDto: CreateProjectDto) {
-    return this.projectsService.create(createProjectDto);
+  create(
+    @Body() createProjectDto: CreateProjectDto,
+    @CurrentUser() user: CurrentUserType,
+  ) {
+    return this.projectsService.create(createProjectDto, user.id);
   }
 
   /**
@@ -92,8 +97,12 @@ export class ProjectsController {
   })
   @ApiNotFoundResponse({ description: 'Registro no encontrado.' })
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateProjectDto: UpdateProjectDto) {
-    return this.projectsService.update(Number(id), updateProjectDto);
+  update(
+    @Param('id') id: string,
+    @Body() updateProjectDto: UpdateProjectDto,
+    @CurrentUser() user: CurrentUserType,
+  ) {
+    return this.projectsService.update(Number(id), updateProjectDto, user.id);
   }
 
   /**
@@ -109,7 +118,7 @@ export class ProjectsController {
   })
   @ApiNotFoundResponse({ description: 'Registro no encontrado.' })
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.projectsService.remove(Number(id));
+  remove(@Param('id') id: string, @CurrentUser() user: CurrentUserType) {
+    return this.projectsService.remove(Number(id), user.id);
   }
 }

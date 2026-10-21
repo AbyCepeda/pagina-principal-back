@@ -4,14 +4,18 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma, Role } from '@prisma/client';
+import { AuditLogAction, Prisma, Role } from '@prisma/client';
 import type { CurrentUser as CurrentUserPayload } from '../auth/decorators/current-user.decorator';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditLogService } from '../audit-log/audit-log.service';
 import { CreateContactCommentDto } from './dto/create-contact-comment.dto';
 
 @Injectable()
 export class ContactCommentsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditLogService: AuditLogService,
+  ) {}
 
   /**
    * Verifica que el usuario autenticado pueda acceder a una solicitud.
@@ -211,6 +215,21 @@ export class ContactCommentsService {
           readAt: null,
         },
       });
+
+      if (author.role === Role.ADMIN) {
+        await this.auditLogService.createLog({
+          action: AuditLogAction.UPDATE,
+          module: 'Mensajes',
+          description: 'Un administrador respondió en una conversación.',
+          actorId: user.id,
+          actorName: author.name,
+          actorEmail: author.email,
+          actorRole: author.role,
+          targetId: contactMessageId,
+          targetType: 'ContactMessage',
+          metadata: { commentId: comment.id },
+        });
+      }
 
       /**
        * Si el usuario responde, marcamos la solicitud como no leída

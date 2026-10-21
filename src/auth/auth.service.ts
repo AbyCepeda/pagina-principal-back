@@ -5,6 +5,8 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import { AuditLogAction, Role } from '@prisma/client';
+import { AuditLogService } from '../audit-log/audit-log.service';
 import { UsersService } from '../users/users.service';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { LoginDto } from './dto/login.dto';
@@ -20,6 +22,7 @@ export class AuthService {
   constructor(
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
+    private readonly auditLogService: AuditLogService,
   ) {}
 
   /**
@@ -66,6 +69,17 @@ export class AuthService {
     };
 
     const accessToken = await this.jwtService.signAsync(payload);
+
+    if (user.role === Role.ADMIN) {
+      await this.auditLogService.createLog({
+        action: AuditLogAction.LOGIN,
+        module: 'Auth',
+        description: 'Un administrador inició sesión.',
+        actorId: user.id,
+        targetId: user.id,
+        targetType: 'User',
+      });
+    }
 
     return {
       success: true,
@@ -158,6 +172,17 @@ export class AuthService {
 
     await this.usersService.updatePassword(userId, hashedNewPassword);
 
+    if (user.role === Role.ADMIN) {
+      await this.auditLogService.createLog({
+        action: AuditLogAction.CHANGE_PASSWORD,
+        module: 'Auth',
+        description: 'Un administrador cambió su contraseña.',
+        actorId: user.id,
+        targetId: user.id,
+        targetType: 'User',
+      });
+    }
+
     return {
       success: true,
       message: 'Contraseña actualizada correctamente',
@@ -188,6 +213,18 @@ export class AuthService {
       updateProfileDto.name.trim(),
       updateProfileDto.email.trim().toLowerCase(),
     );
+
+    if (user.role === Role.ADMIN) {
+      await this.auditLogService.createLog({
+        action: AuditLogAction.UPDATE,
+        module: 'Auth',
+        description: 'Un administrador actualizó su perfil.',
+        actorId: user.id,
+        targetId: user.id,
+        targetType: 'User',
+        metadata: { changedFields: ['name', 'email'] },
+      });
+    }
 
     return {
       success: true,

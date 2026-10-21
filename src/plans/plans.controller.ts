@@ -19,6 +19,8 @@ import { CreatePlanDto } from './dto/create-plan.dto';
 import { GetPlansQueryDto } from './dto/get-plans-query.dto';
 import { UpdatePlanDto } from './dto/update-plan.dto';
 import { PlansService } from './plans.service';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import type { CurrentUser as CurrentUserType } from '../auth/decorators/current-user.decorator';
 
 @ApiTags('Planes')
 @Controller('plans')
@@ -43,8 +45,11 @@ export class PlansController {
     status: 201,
   })
   @Post()
-  create(@Body() createPlanDto: CreatePlanDto) {
-    return this.plansService.create(createPlanDto);
+  create(
+    @Body() createPlanDto: CreatePlanDto,
+    @CurrentUser() user: CurrentUserType,
+  ) {
+    return this.plansService.create(createPlanDto, user.id);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -77,8 +82,12 @@ export class PlansController {
   })
   @ApiNotFoundResponse({ description: 'Registro no encontrado.' })
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updatePlanDto: UpdatePlanDto) {
-    return this.plansService.update(Number(id), updatePlanDto);
+  update(
+    @Param('id') id: string,
+    @Body() updatePlanDto: UpdatePlanDto,
+    @CurrentUser() user: CurrentUserType,
+  ) {
+    return this.plansService.update(Number(id), updatePlanDto, user.id);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -90,7 +99,7 @@ export class PlansController {
   })
   @ApiNotFoundResponse({ description: 'Registro no encontrado.' })
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.plansService.remove(Number(id));
+  remove(@Param('id') id: string, @CurrentUser() user: CurrentUserType) {
+    return this.plansService.remove(Number(id), user.id);
   }
 }

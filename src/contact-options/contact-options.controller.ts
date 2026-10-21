@@ -19,6 +19,8 @@ import { ContactOptionsService } from './contact-options.service';
 import { GetContactOptionsQueryDto } from './dto/get-contact-options-query.dto';
 import { UpdateContactOptionDto } from './dto/update-contact-option.dto';
 import { CreateContactOptionDto } from './dto/create-contact-option.dto';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import type { CurrentUser as CurrentUserType } from '../auth/decorators/current-user.decorator';
 
 @ApiTags('Opciones de contacto')
 @Controller('contact-options')
@@ -80,8 +82,11 @@ export class ContactOptionsController {
     status: 201,
   })
   @Post()
-  create(@Body() createContactOptionDto: CreateContactOptionDto) {
-    return this.contactOptionsService.create(createContactOptionDto);
+  create(
+    @Body() createContactOptionDto: CreateContactOptionDto,
+    @CurrentUser() user: CurrentUserType,
+  ) {
+    return this.contactOptionsService.create(createContactOptionDto, user.id);
   }
 
   /**
@@ -99,10 +104,12 @@ export class ContactOptionsController {
   update(
     @Param('id') id: string,
     @Body() updateContactOptionDto: UpdateContactOptionDto,
+    @CurrentUser() user: CurrentUserType,
   ) {
     return this.contactOptionsService.update(
       Number(id),
       updateContactOptionDto,
+      user.id,
     );
   }
 
@@ -118,7 +125,7 @@ export class ContactOptionsController {
   })
   @ApiNotFoundResponse({ description: 'Registro no encontrado.' })
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.contactOptionsService.remove(Number(id));
+  remove(@Param('id') id: string, @CurrentUser() user: CurrentUserType) {
+    return this.contactOptionsService.remove(Number(id), user.id);
   }
 }

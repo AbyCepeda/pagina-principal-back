@@ -7,6 +7,8 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { UpdateLandingSectionDto } from './dto/update-landing-section.dto';
 import { LandingSectionsService } from './landing-sections.service';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import type { CurrentUser as CurrentUserType } from '../auth/decorators/current-user.decorator';
 
 @ApiTags('Secciones de landing')
 @Controller('landing-sections')
@@ -39,7 +41,12 @@ export class LandingSectionsController {
   update(
     @Param('key') key: string,
     @Body() updateLandingSectionDto: UpdateLandingSectionDto,
+    @CurrentUser() user: CurrentUserType,
   ) {
-    return this.landingSectionsService.update(key, updateLandingSectionDto);
+    return this.landingSectionsService.update(
+      key,
+      updateLandingSectionDto,
+      user.id,
+    );
   }
 }
