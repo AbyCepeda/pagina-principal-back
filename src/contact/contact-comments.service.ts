@@ -121,6 +121,18 @@ export class ContactCommentsService {
 
       const oppositeRole = this.getOppositeRole(user.role);
 
+      if (user.role === Role.ADMIN) {
+        await this.prisma.contactMessage.updateMany({
+          where: {
+            id: contactMessageId,
+            isRead: false,
+          },
+          data: {
+            isRead: true,
+          },
+        });
+      }
+
       await this.prisma.contactMessageComment.updateMany({
         where: {
           contactMessageId,

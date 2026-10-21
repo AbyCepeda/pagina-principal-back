@@ -3,7 +3,7 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { AuditLogAction, ContactStatus } from '@prisma/client';
+import { AuditLogAction, ContactStatus, Role } from '@prisma/client';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateContactMessageDto } from './dto/update-contact-message.dto';
@@ -211,7 +211,12 @@ export class ContactFollowUpService {
     try {
       const count = await this.prisma.contactMessage.count({
         where: {
-          isRead: false,
+          comments: {
+            some: {
+              senderRole: Role.USER,
+              readAt: null,
+            },
+          },
         },
       });
 

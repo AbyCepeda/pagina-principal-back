@@ -4,7 +4,7 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { ContactStatus, Prisma } from '@prisma/client';
+import { ContactStatus, Prisma, Role } from '@prisma/client';
 import { LeadAgentService } from '../lead-agent/lead-agent.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateContactDto } from './dto/create-contact.dto';
@@ -250,12 +250,38 @@ export class ContactService {
         }),
       ]);
 
+      const unreadCommentGroups = messages.length
+        ? await this.prisma.contactMessageComment.groupBy({
+            by: ['contactMessageId'],
+            where: {
+              contactMessageId: {
+                in: messages.map((message) => message.id),
+              },
+              senderRole: Role.USER,
+              readAt: null,
+            },
+            _count: {
+              _all: true,
+            },
+          })
+        : [];
+
+      const unreadCommentCounts = new Map(
+        unreadCommentGroups.map((group) => [
+          group.contactMessageId,
+          group._count._all,
+        ]),
+      );
+
       const totalPages = Math.ceil(total / limit);
 
       return {
         success: true,
         message: 'Mensajes obtenidos correctamente.',
-        data: messages,
+        data: messages.map((message) => ({
+          ...message,
+          unreadCommentsCount: unreadCommentCounts.get(message.id) ?? 0,
+        })),
         meta: {
           page,
           limit,
